@@ -2,6 +2,25 @@
 
 Date: 2026-08-20
 
+> **Status update (2026-08-28).** This document is the 2026-08-20 audit snapshot and is
+> kept as written. The frontend has changed substantially since: `index.html` is no longer
+> a single inline file, and the Evidence Verification Workspace now lives in
+> `workspace-{api,adapter,state,ui,export}.js` plus `workspace.css`.
+>
+> The change relevant to this document's "A/B/C API Mapping Summary" and
+> "Risks Before Live API Integration" sections: the backend now verifies each claim
+> clause by clause and returns `supported_portion`, `unsupported_portion`, `reason_code`,
+> `claim.subclaims[]` and `correction.claim_id`. The adapter previously **derived** the
+> two portions locally from the verification status — returning the whole claim for
+> `supported` and nothing for `partially_supported`, which is the one case where knowing
+> which half survived actually matters. Those two functions are gone. The frontend now
+> renders only what the backend returned, and null stays null so the existing
+> "sub-clause verification unavailable" line means what it says.
+>
+> All new API fields are optional, so a response written against the older schema still
+> renders. Published as `288a849`. Backend detail:
+> `anchorAI-server/AnchorAI-Program_log/03_检索与性能.md` section 9.2.
+
 ## Repository State
 
 - Local path: `/Users/achieve/anchorAI-demo`
