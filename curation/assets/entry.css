@@ -1,0 +1,72 @@
+/* The only style the demo homepage gains from this project.
+   Everything is scoped to #curation-entry so it cannot affect the existing
+   page, and the existing page's styles cannot reach into the workbench. */
+#curation-entry {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #12325c;
+  color: #ffffff;
+  font: 500 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+  text-decoration: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+}
+#curation-entry:hover { background: #0f7b8a; }
+#curation-entry:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+@media (max-width: 640px) {
+  #curation-entry { right: 10px; bottom: 10px; padding: 7px 11px; font-size: 13px; }
+}
+
+/* ---- /anchorAI-demo/curation/ 入口页 ---------------------------------- */
+body.entry-page {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f4f6f9;
+  color: #1b2430;
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+}
+.entry-card {
+  max-width: 640px;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #d7dde5;
+  border-radius: 10px;
+  padding: 32px 34px 26px;
+}
+.entry-card h1 { margin: 0 0 10px; font-size: 22px; color: #12325c; }
+.entry-card .lede { margin: 0 0 22px; color: #43506180; color: #435061; }
+.entry-cta {
+  display: inline-block;
+  background: #12325c;
+  color: #fff;
+  text-decoration: none;
+  padding: 11px 22px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.entry-cta:hover { background: #0f7b8a; }
+.entry-cta:focus-visible { outline: 2px solid #0f7b8a; outline-offset: 2px; }
+.entry-host { font-size: 13px; color: #5b6470; margin: 10px 0 24px; word-break: break-all; }
+.entry-host code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.entry-notes { border-top: 1px solid #e5eaf0; padding-top: 18px; }
+.entry-notes h2 { font-size: 14px; margin: 0 0 10px; color: #5b6470; font-weight: 600; }
+.entry-notes ul { margin: 0; padding-left: 20px; font-size: 14px; color: #435061; }
+.entry-notes li { margin-bottom: 8px; }
+.entry-back { margin: 22px 0 0; font-size: 13px; }
+.entry-back a { color: #0f7b8a; }
+@media (max-width: 520px) {
+  .entry-card { padding: 22px 20px 18px; }
+  .entry-card h1 { font-size: 19px; }
+}
