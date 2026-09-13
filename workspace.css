@@ -2064,3 +2064,135 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   font-weight: 600;
 }
 .aw-seg--heading:first-child { margin-top: 0; }
+
+/* ---- v40 parity, pass 2 --------------------------------------------------
+   Measured against the case gallery's .v7-* rules in cases.css, which is the
+   design the workspace is meant to match. The gradients, radius, shadow, grid
+   gap and body metrics already agreed; these are the five that did not. */
+
+/* 1. Each column is tinted by its own axis, not by the shared border grey. */
+.aw-panel-a { border-color: #fecaca; }
+.aw-panel-b { border-color: #bbf7d0; }
+.aw-panel-c { border-color: #ddd6fe; }
+
+/* 2. The letter reads as part of the header bar rather than a chip dropped on
+   it: 22px, translucent white, white glyph -- .v7-badge. */
+.aw-letter {
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, .25);
+  color: #fff;
+}
+.aw-panel-a .aw-letter,
+.aw-panel-b .aw-letter,
+.aw-panel-c .aw-letter {
+  background: rgba(255, 255, 255, .25);
+  color: #fff;
+}
+
+/* 3. One line in the header, with the run's provenance as a note at the top of
+   the body -- .v7-col-h is a single row and .v7-note carries the rest. */
+.aw-panel-h-title {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aw-panel-note {
+  margin: 0 0 9px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 11.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* 4. Track/Clean as the gallery's slider. The two buttons stay the real
+   controls -- the switch is decorative and follows whichever is active, so
+   the keyboard and screen-reader behaviour is unchanged. */
+.aw-panel-head .aw-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.aw-panel-head .aw-mode-button,
+.aw-panel-head .aw-mode-button.active {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, .9);
+  font-size: 11px;
+  font-weight: 700;
+}
+.aw-panel-head .aw-mode-button:not(.active) { opacity: .5; }
+.aw-panel-head .aw-mode-button.active { opacity: 1; }
+.aw-switch {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 21px;
+}
+.aw-knob {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid rgba(255, 255, 255, .75);
+  border-radius: 21px;
+  background: rgba(255, 255, 255, .32);
+  transition: background .25s;
+}
+.aw-knob::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2.5px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .25s;
+}
+.aw-mode-toggle:has(.aw-mode-button[data-mode="clean"].active) .aw-knob {
+  background: rgba(255, 255, 255, .5);
+}
+.aw-mode-toggle:has(.aw-mode-button[data-mode="clean"].active) .aw-knob::before {
+  transform: translateX(18px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .aw-knob, .aw-knob::before { transition: none; }
+}
+
+/* 5. Citation chips use the gallery's blue, not a paler one of their own. */
+.aw-citation-marker {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.aw-citation-marker:hover { background: #bfdbfe; }
+
+/* The gallery's column header carries the badge, the title and -- on Ⓑ -- the
+   slider, and nothing else. Keeping the copy buttons up there squeezed the
+   title to an ellipsis ("Anchor-c..."), so they sit under the body instead. */
+.aw-panel-foot {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 8px 13px;
+  border-top: 1px solid #eef1f5;
+  background: #fcfdfe;
+}
+.aw-panel-foot .aw-ghost-button { font-size: 12px; }
