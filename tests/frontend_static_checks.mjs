@@ -80,13 +80,21 @@ assert.doesNotMatch(casesJs, /document\.body\.className/, "case gallery must not
 assert.match(casesJs, /data-ui-language/, "case gallery language must follow the workspace toggle");
 assert.ok(html.indexOf('id="anchor-workspace"') < html.indexOf(casesMarker), "live workspace must stay above the archived gallery");
 
-// Panel A shows the UNCORRECTED answer. Marking a claim there is an assertion that
-// Anchor found something wrong with it, so only adversely judged statuses qualify:
-// "not_verifiable" means Anchor could not check the claim, and "partially_supported"
-// means it IS supported with caveats.
-assert.match(workspaceUiJs, /FLAGGED_STATUSES = new Set\(\["unsupported", "conflicting"\]\)/, "panel A must flag only adversely judged claims");
-assert.doesNotMatch(workspaceUiJs, /filter\(\(claim\) => claim\.verificationStatus !== "supported"\)/, "panel A must not flag every non-supported claim");
-assert.match(workspaceUiJs, /\.filter\(isFlaggedClaim\)/, "raw markers must go through the shared flag predicate");
+// Panel A shows the UNCORRECTED answer, and that is all it shows. It used to
+// carry claim markers and a flagged-claims list, which meant the panel whose
+// only job is to show what the model said before Anchor touched it was already
+// displaying Anchor's findings -- there was nothing left to compare against.
+// Where a claim failed belongs to the corrected panel, and every correction,
+// including the ones that could not be located in the text, is listed under
+// Corrections regardless.
+const rawPanel = /function renderRawPanel\(\)\s*{([\s\S]*?)\n    }/.exec(workspaceUiJs);
+assert.ok(rawPanel, "the raw panel needs a renderer");
+assert.match(rawPanel[1], /markers:\s*\[\]/,
+  "the uncorrected answer must be rendered with no markers");
+assert.equal(/FlaggedClaims|rawMarkers/.test(rawPanel[1]), false,
+  "the uncorrected answer must not display verification results");
+assert.equal(/FLAGGED_STATUSES|isFlaggedClaim/.test(workspaceUiJs), false,
+  "the flagging helpers are dead once panel A stops marking");
 
 // The Markdown export must say the same thing as the audit panel (section 10.9), and
 // neither may print the claim text under a heading that reads like a verification.

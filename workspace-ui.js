@@ -206,7 +206,6 @@
       noRawAnswer: "Raw answer has not been generated.",
       correctedPending: "Anchor-corrected answer will appear after the run finishes.",
       noTextReturned: "No text returned.",
-      flaggedClaims: "Flagged claims",
       correctedReferences: "Corrected-version references ({count})",
       noAnchorCitations: "No Anchor citations returned.",
       noExternalLink: "No external link",
@@ -484,7 +483,6 @@
       noRawAnswer: "尚未生成原始回答。",
       correctedPending: "运行完成后会显示 Anchor 校正回答。",
       noTextReturned: "未返回文本。",
-      flaggedClaims: "标记的 claims",
       correctedReferences: "校正版参考文献（{count}）",
       noAnchorCitations: "未返回 Anchor citation。",
       noExternalLink: "无外部链接",
@@ -1131,33 +1129,18 @@
       refs.rawModel.textContent = raw.model || "-";
       refs.rawVerification.textContent = verificationStatusLabel(raw.verificationStatus || "uncorrected");
       refs.copyRawButton.disabled = !(vm || state.rawAnswer);
-      const markers = vm ? rawMarkers(vm) : [];
-      const matched = renderMarkdown(refs.rawText, raw.text || t("noRawAnswer"), {
-        markers,
-        onClaim: focusByClaimOnly,
+      // No markers, no flagged list. This panel exists to show what the model
+      // said before Anchor touched it; annotating it with verification results
+      // destroys the comparison it is here to provide. Where a claim failed is
+      // the corrected panel's job, and every correction -- including the ones
+      // that could not be located in the text -- is listed under Corrections.
+      renderMarkdown(refs.rawText, raw.text || t("noRawAnswer"), {
+        markers: [],
         citations: vm ? vm.citations : [],
         onCitation: focusCitation,
       });
-      renderFlaggedClaims(vm, matched);
     }
 
-    function renderFlaggedClaims(vm, matched) {
-      replaceChildren(refs.flaggedClaims);
-      if (!vm) return;
-      const flagged = vm.claims.filter(isFlaggedClaim);
-      const unmatched = flagged.filter((claim) => !matched.has(claim.id));
-      if (!unmatched.length) return;
-      refs.flaggedClaims.appendChild(create("h3", { className: "aw-mini-heading", text: t("flaggedClaims") }));
-      unmatched.forEach((claim) => {
-        const button = create("button", {
-          className: `aw-flagged-claim aw-status-${safeClass(claim.verificationStatus)}`,
-          type: "button",
-          text: `${claimLabel(claim.id)} | ${verificationStatusLabel(claim.verificationStatus)}: ${claim.text}`,
-        });
-        button.addEventListener("click", () => focusByClaimOnly(claim.id));
-        refs.flaggedClaims.appendChild(button);
-      });
-    }
 
     function renderCorrectedPanel() {
       const vm = state.viewModel;
@@ -1887,7 +1870,6 @@
       rawModel: required(root, "#aw-raw-model"),
       rawVerification: required(root, "#aw-raw-verification"),
       rawText: required(root, "#aw-raw-text"),
-      flaggedClaims: required(root, "#aw-flagged-claims"),
       copyRawButton: required(root, "#aw-copy-raw"),
       correctedEvidence: required(root, "#aw-corrected-evidence"),
       correctedConfidence: required(root, "#aw-corrected-confidence"),
@@ -2112,27 +2094,8 @@
      the claim at all, and "partially_supported" means it IS supported with
      caveats - neither is a finding about the raw answer, and marking them made
      Anchor look like it had condemned claims it never evaluated. */
-  const FLAGGED_STATUSES = new Set(["unsupported", "conflicting"]);
 
-  function isFlaggedClaim(claim) {
-    return FLAGGED_STATUSES.has(String(claim.verificationStatus || "").toLowerCase());
-  }
 
-  function rawMarkers(vm) {
-    const correctionByClaim = new Map(vm.corrections.map((correction) => [correction.claimId, correction]));
-    return vm.claims
-      .filter(isFlaggedClaim)
-      .map((claim) => {
-        const correction = correctionByClaim.get(claim.id);
-        return {
-          id: claim.id,
-          needle: claim.text,
-          status: claim.verificationStatus,
-          category: correction ? correction.category : "other",
-          reason: correction ? correction.reason : "",
-        };
-      });
-  }
 
   function correctedMarkers(vm) {
     return vm.corrections
