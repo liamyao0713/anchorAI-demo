@@ -1174,15 +1174,54 @@
         button.classList.toggle("active", active);
         button.setAttribute("aria-pressed", active ? "true" : "false");
       });
-      const text = vm ? vm.correctedAnswer.text : t("correctedPending");
-      const markers = vm && state.correctedMode === "tracked" ? correctedMarkers(vm) : [];
-      renderMarkdown(refs.correctedText, text, {
-        markers,
-        onClaim: focusByClaimOnly,
-        citations: vm ? vm.citations : [],
-        onCitation: focusCitation,
-      });
+      const segments = vm && Array.isArray(vm.annotatedAnswer) ? vm.annotatedAnswer : [];
+      if (segments.length) {
+        // The Raw Answer is the document. Only what evidence disagreed with is
+        // marked; a sentence that held up is printed exactly as the model wrote
+        // it. Rebuilding the answer out of verified claims handed the reader
+        // something they had never seen, which is what this replaces.
+        renderAnnotatedAnswer(refs.correctedText, segments, state.correctedMode === "tracked");
+      } else {
+        const text = vm ? vm.correctedAnswer.text : t("correctedPending");
+        const markers = vm && state.correctedMode === "tracked" ? correctedMarkers(vm) : [];
+        renderMarkdown(refs.correctedText, text, {
+          markers,
+          onClaim: focusByClaimOnly,
+          citations: vm ? vm.citations : [],
+          onCitation: focusCitation,
+        });
+      }
       renderCorrectedReferences(vm);
+    }
+
+    // clean   -- the answer as it should now read: corrections applied in place.
+    // tracked  -- what changed: the original struck through above its replacement.
+    // Either way an untouched sentence is untouched, with no colour on it. Colour
+    // only means something while it is rare.
+    function renderAnnotatedAnswer(container, segments, tracked) {
+      replaceChildren(container);
+      segments.forEach((segment) => {
+        const line = create("p", { className: `aw-seg aw-seg--${segment.status}` });
+
+        if (segment.status === "corrected" && segment.correctedText) {
+          if (tracked) {
+            line.appendChild(create("span", { className: "aw-seg__was", text: segment.text }));
+          }
+          const fix = create("span", { className: "aw-seg__fix", text: segment.correctedText });
+          if (segment.verificationStatus) {
+            fix.dataset.verdict = t(`verification.${segment.verificationStatus}`)
+              || segment.verificationStatus;
+          }
+          line.appendChild(fix);
+        } else {
+          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
+        }
+
+        if (segment.riskNote) {
+          line.appendChild(create("small", { className: "aw-seg__note", text: segment.riskNote }));
+        }
+        container.appendChild(line);
+      });
     }
 
     function renderCorrectedReferences(vm) {

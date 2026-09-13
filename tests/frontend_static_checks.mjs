@@ -492,35 +492,57 @@ assert.equal(/function unsupportedPortion\s*\(/.test(adapterSource), false,
 
 // ── 逐句标注：只有改动过的句子才允许带视觉标记 ──────────────────
 //
-// The whole point of the annotated answer is that the Raw Answer survives and
-// only what changed is marked. A rule that paints every sentence would look
-// like a feature and destroy the signal, so the "verified" and "unchecked"
-// styles are pinned to the two things they may do: a left rule and a colour.
+// These assertions were first written against live-chat.js, which index.html
+// does not load -- the page runs the workspace-*.js set. The checks passed and
+// the site did not change. So the first thing pinned here is which files the
+// page actually loads.
 
-assert.match(js, /function renderAnnotatedAnswer\s*\(/,
+const loadedScripts = [...html.matchAll(/<script[^>]*src="([^"?]+)/g)].map((m) => m[1]);
+assert.ok(loadedScripts.includes("workspace-ui.js"),
+  "the page must load the renderer these checks are about");
+assert.ok(loadedScripts.includes("workspace-adapter.js"),
+  "the page must load the adapter these checks are about");
+assert.equal(loadedScripts.includes("live-chat.js"), false,
+  "live-chat.js is not loaded by index.html; assertions about it prove nothing");
+
+// Every script and stylesheet the page loads carries the same cache-busting
+// stamp. A changed file behind a stale stamp is a deploy that silently does
+// nothing, which is exactly what happened on the first attempt.
+const stamps = new Set([...html.matchAll(/(?:\.js|\.css)\?v=([a-z0-9-]+)/g)].map((m) => m[1]));
+assert.equal(stamps.size, 1, `all assets must share one cache stamp, found ${[...stamps].join(", ")}`);
+
+// The adapter reads the annotated answer; it does not rebuild it. Aligning
+// claims back onto sentences needs a similarity floor and an audit trail, and
+// both belong server-side.
+assert.match(workspaceAdapterJs, /normalizeAnnotatedAnswer\s*\(/,
+  "the adapter must normalise annotated_answer");
+assert.match(workspaceAdapterJs, /annotated_answer/,
+  "annotated_answer must be read from the payload");
+assert.equal(/function alignClaim|similarity\s*\(/.test(workspaceAdapterJs), false,
+  "sentence alignment must not be reimplemented in the frontend");
+
+// The corrected panel renders the Raw Answer, and still falls back to the
+// claim-by-claim text when an older API sends no segments.
+assert.match(workspaceUiJs, /function renderAnnotatedAnswer\s*\(/,
   "the corrected panel must render the Raw Answer sentence by sentence");
-assert.match(js, /Array\.isArray\(payload\.annotated_answer\)/,
-  "annotated_answer must be read from the payload, not reconstructed");
-assert.match(js, /setText\(correctedText, corrected\.text \|\| correctedFallbackText\(status\)\)/,
-  "an older API with no annotated_answer must still render the claim-by-claim text");
+assert.match(workspaceUiJs, /vm\.annotatedAnswer/,
+  "the panel must read the annotated answer from the view model");
+assert.match(workspaceUiJs, /renderMarkdown\(refs\.correctedText, text/,
+  "an older API with no annotated_answer must still render");
 
-// A corrected sentence carries its replacement and the verdict that produced it.
-assert.match(js, /aw-seg__fix/, "a corrected sentence needs its replacement text");
-assert.match(js, /dataset\.verdict/, "the replacement must carry the verification status");
-
-// The note is smaller and a different colour, and it is a <small>, not a <p>.
-assert.match(js, /document\.createElement\("small"\)/,
+// The note is smaller and a different colour, and it is a <small>.
+assert.match(workspaceUiJs, /create\("small", \{ className: "aw-seg__note"/,
   "the risk note is secondary text, not another paragraph");
-assert.match(css, /\.aw-seg__note\s*{[^}]*font-size:\s*\.8/,
+assert.match(workspaceCss, /\.aw-seg__note\s*{[^}]*font-size:\s*\.8/,
   "the risk note must be smaller than the sentence it annotates");
-assert.match(css, /\.aw-seg__note\s*{[^}]*color:\s*var\(--aw-warning\)/,
+assert.match(workspaceCss, /\.aw-seg__note\s*{[^}]*color:\s*var\(--aw-warning\)/,
   "the risk note must not reuse the correction colour");
-assert.match(css, /\.aw-seg__fix\s*{[^}]*var\(--aw-a-soft\)/,
+assert.match(workspaceCss, /\.aw-seg__fix\s*{[^}]*var\(--aw-a-soft\)/,
   "a correction must be visually distinct from its note");
 
-// A verified sentence gets a rule, never a background fill or a strikethrough:
-// it is the model's text, unchanged, and must read as such.
-const verifiedBlock = /\.aw-seg--verified \.aw-seg__text\s*{([^}]*)}/.exec(css);
+// A verified sentence gets a rule, never a fill or a strikethrough: it is the
+// model's own text, unchanged, and has to read that way.
+const verifiedBlock = /\.aw-seg--verified \.aw-seg__text\s*{([^}]*)}/.exec(workspaceCss);
 assert.ok(verifiedBlock, "verified sentences need a style block");
 assert.equal(/background/.test(verifiedBlock[1]), false,
   "a sentence nothing was wrong with must not be highlighted");

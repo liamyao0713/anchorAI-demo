@@ -49,6 +49,10 @@
         groundedByAnchor: raw.grounded_by_anchor === false ? false : null,
         verificationStatus: valueOrDash(raw.verification_status || "uncorrected"),
       },
+      // The Raw Answer sentence by sentence, as the backend marked it. Read, not
+      // reconstructed: aligning claims back onto sentences needs the similarity
+      // floor and the audit trail that go with it, and both live server-side.
+      annotatedAnswer: normalizeAnnotatedAnswer(safePayload.annotated_answer),
       correctedAnswer: {
         text: valueOrDash(corrected.text),
         evidenceStatus,
@@ -110,6 +114,30 @@
       // runaway nesting in a response must not become a runaway render.
       subclaims: (depth || 0) >= 1 ? [] : normalizeClaims(claim && claim.subclaims, (depth || 0) + 1),
     }));
+  }
+
+  function normalizeAnnotatedAnswer(segments) {
+    if (!Array.isArray(segments)) return [];
+    return segments
+      .map((segment) => {
+        const text = segment && typeof segment.text === "string" ? segment.text : "";
+        if (!text) return null;
+        const status = segment.status === "verified" || segment.status === "corrected"
+          ? segment.status
+          : "unchecked";
+        return {
+          text,
+          status,
+          verificationStatus: optionalText(segment.verification_status),
+          correctedText: optionalText(segment.corrected_text),
+          retainedRatio:
+            typeof segment.retained_ratio === "number" ? segment.retained_ratio : null,
+          riskNote: optionalText(segment.risk_note),
+          claimIds: safeStringList(segment.claim_ids),
+          citationIds: safeStringList(segment.citation_ids),
+        };
+      })
+      .filter(Boolean);
   }
 
   // Empty string, "-" and undefined all mean "the backend did not give us this".

@@ -1966,3 +1966,68 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   opacity: 0.65;
   word-break: break-all;
 }
+
+/* ── 逐句标注的校准回答 ────────────────────────────────────────
+   原文是文档本体。只有证据不认的句子带标记 —— 颜色稀少才有意义，
+   全都上色就等于都没上。三种状态里只有一种是显眼的。            */
+
+.aw-seg { margin: 0 0 .6em; line-height: 1.75; }
+.aw-seg:last-child { margin-bottom: 0; }
+.aw-seg__text, .aw-seg__was, .aw-seg__fix { display: block; }
+
+/* 核验通过：原样照录，一道细绿槽表示"查过且站得住"。 */
+.aw-seg--verified .aw-seg__text {
+  border-left: 2px solid var(--aw-b);
+  padding-left: .65em;
+}
+
+/* 没有论断对上 = 没检查过，不是"没问题"。灰字、极淡的槽，
+   与 verified 明确区分开。 */
+.aw-seg--unchecked .aw-seg__text {
+  border-left: 2px solid var(--aw-border);
+  padding-left: .65em;
+  color: var(--aw-muted);
+}
+
+/* tracked 模式下才出现：被替换掉的原句。 */
+.aw-seg__was {
+  border-left: 2px solid var(--aw-a);
+  padding-left: .65em;
+  color: var(--aw-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--aw-a);
+  text-decoration-thickness: 1px;
+  margin-bottom: .3em;
+}
+
+/* 改写后的句子。clean 模式下它单独出现，tracked 模式下跟在原句下面。 */
+.aw-seg__fix {
+  padding: .5em .75em;
+  background: var(--aw-a-soft);
+  border-left: 2px solid var(--aw-a);
+  border-radius: 0 4px 4px 0;
+  color: var(--aw-text);
+}
+.aw-seg__fix[data-verdict]::before {
+  content: attr(data-verdict);
+  display: block;
+  font-size: .68em;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--aw-a);
+  margin-bottom: .2em;
+}
+
+/* 风险备注：换色、缩小。它是次级提醒，不该和正文抢注意力，
+   但 0.82em 仍然读得清。 */
+.aw-seg__note {
+  display: block;
+  margin-top: .32em;
+  padding: .42em .75em;
+  font-size: .82em;
+  line-height: 1.62;
+  color: var(--aw-warning);
+  background: var(--aw-warning-soft);
+  border-left: 2px solid var(--aw-warning);
+  border-radius: 0 4px 4px 0;
+}
