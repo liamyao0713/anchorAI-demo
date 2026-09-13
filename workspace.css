@@ -2024,3 +2024,19 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   border-left: 2px solid var(--aw-c);
   border-radius: 0 4px 4px 0;
 }
+
+/* 库里没有相关证据。这不是对句子的判定，是覆盖面的缺口 ——
+   用一道虚线槽和一行小字说明，与"证据反对它"明确区分开。 */
+.aw-seg--no-evidence .aw-seg__text {
+  border-left: 2px dashed var(--aw-faint);
+  padding-left: .65em;
+  color: var(--aw-muted);
+}
+.aw-seg__gap {
+  display: block;
+  margin-top: .28em;
+  padding-left: .65em;
+  font-size: .78em;
+  line-height: 1.55;
+  color: var(--aw-faint);
+}

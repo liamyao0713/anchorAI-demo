@@ -571,6 +571,33 @@ assert.equal(/background/.test(verifiedBlock[1]), false,
 assert.equal(/line-through/.test(verifiedBlock[1]), false,
   "a sentence nothing was wrong with must not be struck out");
 
+// ── 未核验的两种情形，以及一个会虚报错误的分类 ────────────────
+//
+// "not_verifiable" splits: nothing in the KB was retrieved for the claim, or
+// evidence was retrieved and did not settle it. Only the first is a gap the
+// reader can act on, and only the first is marked.
+assert.match(workspaceAdapterJs, /unverifiableReason: optionalText\(segment\.unverifiable_reason\)/,
+  "the adapter must carry why a sentence was unverifiable");
+assert.match(workspaceUiJs, /unverifiableReason === "no_evidence"/,
+  "only the no-coverage case may be marked");
+const noEvidence = /\.aw-seg--no-evidence \.aw-seg__text\s*{([^}]*)}/.exec(workspaceCss);
+assert.ok(noEvidence, "the no-coverage case needs its own style");
+assert.match(noEvidence[1], /dashed/,
+  "a coverage gap must not look like a finding against the sentence");
+
+// Category patterns ran over the reason text of every non-supported verdict,
+// so a not_verifiable claim whose reason mentioned a percentage came back
+// labelled "numerical error" -- reporting a fault that was never found.
+assert.match(workspaceAdapterJs, /normalizedStatus === "not_verifiable"[\s\S]{0,120}return "other"/,
+  "a verdict that concluded nothing must not be given a fault category");
+
+// "Key corrections" listing three not_verifiable entries reads as three
+// problems found, when the run found none.
+assert.match(workspaceAdapterJs, /CONCLUDED_STATUSES = new Set\(\["unsupported", "conflicting", "partially_supported"\]\)/,
+  "key corrections must be limited to verdicts that concluded something");
+assert.match(workspaceAdapterJs, /CONCLUDED_STATUSES\.has\(/,
+  "the filter must actually be applied");
+
 console.log("frontend static checks passed");
 
 function pickError(errorInfo) {

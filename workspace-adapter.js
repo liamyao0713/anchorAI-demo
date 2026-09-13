@@ -132,6 +132,7 @@
           status,
           severity,
           verificationStatus: optionalText(segment.verification_status),
+          unverifiableReason: optionalText(segment.unverifiable_reason),
           correctedText: optionalText(segment.corrected_text),
           retainedRatio:
             typeof segment.retained_ratio === "number" ? segment.retained_ratio : null,
@@ -266,9 +267,16 @@
     };
   }
 
+  //: Verdicts that are a finding about the claim. "not_verifiable" is not one:
+  //: listing three of them under a heading that says "key corrections" reads as
+  //: three problems found, when the run found none.
+  const CONCLUDED_STATUSES = new Set(["unsupported", "conflicting", "partially_supported"]);
+
   function buildKeyCorrections(corrections) {
     return corrections
       .filter((correction) => correction.material)
+      .filter((correction) => CONCLUDED_STATUSES.has(
+        String(correction.verificationStatus || "").toLowerCase()))
       .sort((a, b) => severityRank(b.severity) - severityRank(a.severity))
       .slice(0, 3)
       .map((correction) => ({
@@ -316,6 +324,14 @@
     if (CORRECTION_CATEGORIES.has(explicit)) return explicit;
     const text = `${reason || ""} ${originalClaim || ""}`.toLowerCase();
     const normalizedStatus = String(status || "").toLowerCase();
+    // A verdict of not_verifiable means nothing was concluded about the claim.
+    // Running the category patterns over its reason text turned "we could not
+    // check this" into "numerical error" whenever the reason happened to mention
+    // a percentage or a mortality figure -- reporting a fault the system never
+    // found, which is the worst direction for this error to go.
+    if (normalizedStatus === "not_verifiable" || normalizedStatus === "not_evaluated") {
+      return "other";
+    }
     if (/citation|reference|pmid|doi|wrong paper|引用|文献/.test(text) && normalizedStatus !== "supported") {
       return "wrong citation";
     }

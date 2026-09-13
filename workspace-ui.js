@@ -205,6 +205,7 @@
       noRunDetails: "Run details will appear after a response is returned.",
       noRawAnswer: "Raw answer has not been generated.",
       correctedPending: "Anchor-corrected answer will appear after the run finishes.",
+      noEvidenceInKb: "Anchor KB holds no evidence on this",
       noTextReturned: "No text returned.",
       correctedReferences: "Corrected-version references ({count})",
       noAnchorCitations: "No Anchor citations returned.",
@@ -482,6 +483,7 @@
       noRunDetails: "响应返回后会显示运行详情。",
       noRawAnswer: "尚未生成原始回答。",
       correctedPending: "运行完成后会显示 Anchor 校正回答。",
+      noEvidenceInKb: "Anchor 知识库中没有相关证据",
       noTextReturned: "未返回文本。",
       correctedReferences: "校正版参考文献（{count}）",
       noAnchorCitations: "未返回 Anchor citation。",
@@ -1184,8 +1186,22 @@
     function renderAnnotatedAnswer(container, segments, tracked) {
       replaceChildren(container);
       segments.forEach((segment) => {
-        const severity = segment.severity ? ` aw-seg--${segment.severity}` : "";
-        const line = create("p", { className: `aw-seg aw-seg--${segment.status}${severity}` });
+        // A sentence the KB had nothing on is marked; one where evidence was
+        // found and did not settle it is not. Both end as "not verifiable" and
+        // only the first is a gap the reader can act on.
+        const flavour = segment.severity
+          || (segment.unverifiableReason === "no_evidence" ? "no-evidence" : "");
+        const line = create("p", {
+          className: `aw-seg aw-seg--${segment.status}${flavour ? ` aw-seg--${flavour}` : ""}`,
+        });
+        if (segment.status === "unverifiable" && segment.unverifiableReason === "no_evidence") {
+          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
+          line.appendChild(create("small", {
+            className: "aw-seg__gap", text: t("noEvidenceInKb"),
+          }));
+          container.appendChild(line);
+          return;
+        }
 
         if (segment.status === "corrected" && segment.correctedText) {
           // Severe strikes the original out; minor leaves it standing, because
