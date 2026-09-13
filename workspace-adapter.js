@@ -133,6 +133,10 @@
           severity,
           verificationStatus: optionalText(segment.verification_status),
           unverifiableReason: optionalText(segment.unverifiable_reason),
+          // Which paragraph of the Raw Answer the sentence came from, so the
+          // clean view can put a paragraph back together instead of showing
+          // one <p> per sentence where nothing is marked anyway.
+          blockIndex: Number.isInteger(segment.block_index) ? segment.block_index : 0,
           correctedText: optionalText(segment.corrected_text),
           retainedRatio:
             typeof segment.retained_ratio === "number" ? segment.retained_ratio : null,

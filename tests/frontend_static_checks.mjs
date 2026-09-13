@@ -542,13 +542,13 @@ assert.match(workspaceUiJs, /renderMarkdown\(refs\.correctedText, text/,
 // readable prose; a clean view that still carries rules, fix blocks, verdict
 // badges and notes is just the tracked view with the strikethrough removed --
 // which is what it was, and what the user called out.
-const cleanBranch = /if \(!tracked\) {([\s\S]*?)\n        }/.exec(workspaceUiJs);
+const cleanBranch = /if \(!tracked\) {([\s\S]*?)\n      }/.exec(workspaceUiJs);
 assert.ok(cleanBranch, "clean mode needs its own branch, not a tracked view minus one line");
 for (const decoration of ["aw-seg__fix", "aw-seg__note", "aw-seg__gap", "aw-seg__was", "dataset.verdict"]) {
   assert.ok(!cleanBranch[1].includes(decoration),
     `clean mode must not render ${decoration}`);
 }
-assert.match(cleanBranch[1], /segment\.correctedText \|\| segment\.text/,
+assert.match(cleanBranch[1], /corrected \|\| blockText/,
   "clean mode shows the corrected wording where there is one, the original otherwise");
 // And the class it does use must not smuggle the marking back in via CSS.
 const plain = /\.aw-seg--plain\s*{([^}]*)}/.exec(workspaceCss);
@@ -628,3 +628,31 @@ function pickError(errorInfo) {
     rawText: errorInfo.rawText,
   };
 }
+
+
+// The Raw Answer is a document -- numbered headings, bullet lists, bold labels --
+// and panel B rendered every sentence as a bare <p>. Measured in a real browser:
+// panel A came out as 6 paragraphs and 5 lists, panel B as 35 flat paragraphs
+// carrying ten literal "**" pairs, which is not a comparison a reader can make.
+assert.match(workspaceUiJs, /function segmentBlock\s*\(/,
+  "the corrected panel must recover the block each sentence came from");
+assert.match(workspaceUiJs, /create\("ul", \{ className: "aw-seg-list"/,
+  "consecutive bullet segments must render as one list, not as loose paragraphs");
+assert.match(workspaceCss, /\.aw-seg-list\s*{[^}]*list-style/,
+  ".aw-seg-list needs its own list styling");
+assert.match(workspaceCss, /\.aw-seg-list > \.aw-seg\s*{[^}]*display:\s*list-item/,
+  "a marked bullet must still render as a list item");
+// Bold has to go through the shared inline renderer in every branch, or the
+// markers reach the screen as text.
+const annotated = /function fillSegment\s*\([\s\S]*?\n    }/.exec(workspaceUiJs);
+assert.ok(annotated, "fillSegment must exist");
+assert.ok(!/text:\s*blockText/.test(annotated[1] || annotated[0]),
+  "segment text must go through appendBoldText, not be set as raw text");
+assert.equal((annotated[0].match(/appendBoldText/g) || []).length >= 4, true,
+  "every branch that prints segment text must render its bold");
+
+// The correction is built from the claim, which keeps the bullet the sentence
+// arrived with -- inside a <li> that draws its own marker the reader saw "- text"
+// next to a disc.
+assert.match(workspaceUiJs, /corrected:\s*corrected \? corrected\.replace\(LIST_ITEM_RE, ""\)/,
+  "a corrected bullet must lose its literal marker like the original does");

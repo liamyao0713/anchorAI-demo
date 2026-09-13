@@ -2048,3 +2048,19 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   line-height: 1.75;
 }
 .aw-seg--plain:last-child { margin-bottom: 0; }
+
+/* B 的块级结构要跟 A 对得上，否则两栏没法并排读。 */
+.aw-seg-list {
+  margin: 0 0 .6em;
+  padding-left: 1.25em;
+  list-style: disc;
+}
+.aw-seg-list > .aw-seg {
+  display: list-item;
+  margin: 0 0 .35em;
+}
+.aw-seg--heading {
+  margin-top: 1em;
+  font-weight: 600;
+}
+.aw-seg--heading:first-child { margin-top: 0; }

@@ -1183,59 +1183,124 @@
     // tracked  -- what changed: the original struck through above its replacement.
     // Either way an untouched sentence is untouched, with no colour on it. Colour
     // only means something while it is rare.
+    // A segment is one sentence, but the Raw Answer it came from is a document:
+    // numbered headings, bullet lists, bold labels. Rendering every segment as a
+    // bare <p> threw all of that away -- panel A came out as 6 paragraphs and 5
+    // lists, panel B as 35 flat paragraphs with ten literal "**" pairs on screen,
+    // so the two panels could not be read side by side at all.
+    const LIST_ITEM_RE = /^[-*\u2022]\s+/;
+    const HEADING_RE = /^(?:#{1,4}\s+|\*\*[^*]+\*\*[：:]?$)/;
+
+    function segmentBlock(segment) {
+      const text = String(segment.text || "");
+      // The correction is built from the claim, which keeps the bullet the
+      // sentence arrived with. Rendered inside a <li> that already draws one,
+      // the reader gets "- text" sitting next to the list's own marker.
+      const corrected = segment.correctedText ? String(segment.correctedText) : null;
+      if (LIST_ITEM_RE.test(text)) {
+        return {
+          kind: "li",
+          text: text.replace(LIST_ITEM_RE, ""),
+          corrected: corrected ? corrected.replace(LIST_ITEM_RE, "") : null,
+        };
+      }
+      if (HEADING_RE.test(text.trim())) {
+        return { kind: "h", text: text.replace(/^#{1,4}\s+/, ""), corrected };
+      }
+      return { kind: "p", text, corrected };
+    }
+
     // clean   -- the answer as it should now read. Prose only: the corrected
-    //            wording already carries its own caveat ("Anchor evidence
-    //            conflicts on this; do not treat it as settled: ..."), so the
-    //            rules, badges and notes add nothing a reader of the sentence
-    //            does not already have. A "clean" view that keeps the apparatus
-    //            is just the tracked view with one thing missing.
+    //            wording already carries its own caveat, so the rules, badges
+    //            and notes add nothing a reader of the sentence does not have.
     // tracked -- the full trail: what was struck, what replaced it, which
     //            verdict produced it, where the KB had nothing, and the notes.
+    function fillSegment(line, segment, tracked, block) {
+      const blockText = block.text;
+      const corrected = block.corrected;
+      if (!tracked) {
+        appendBoldText(line, corrected || blockText);
+        return;
+      }
+
+      // A sentence the KB had nothing on is marked; one where evidence was found
+      // and did not settle it is not. Both end as "not verifiable" and only the
+      // first is a gap the reader can act on.
+      if (segment.status === "unverifiable" && segment.unverifiableReason === "no_evidence") {
+        const span = create("span", { className: "aw-seg__text" });
+        appendBoldText(span, blockText);
+        line.appendChild(span);
+        line.appendChild(create("small", { className: "aw-seg__gap", text: t("noEvidenceInKb") }));
+        return;
+      }
+
+      if (segment.status === "corrected" && corrected) {
+        const was = create("span", {
+          className: segment.severity === "severe" ? "aw-seg__was" : "aw-seg__text",
+        });
+        appendBoldText(was, blockText);
+        line.appendChild(was);
+        const fix = create("span", { className: "aw-seg__fix" });
+        appendBoldText(fix, corrected);
+        if (segment.verificationStatus) {
+          fix.dataset.verdict = t(`verification.${segment.verificationStatus}`)
+            || segment.verificationStatus;
+        }
+        line.appendChild(fix);
+      } else {
+        const span = create("span", { className: "aw-seg__text" });
+        appendBoldText(span, blockText);
+        line.appendChild(span);
+      }
+
+      if (segment.riskNote) {
+        line.appendChild(create("small", { className: "aw-seg__note", text: segment.riskNote }));
+      }
+    }
+
     function renderAnnotatedAnswer(container, segments, tracked) {
       replaceChildren(container);
+      let list = null;
+      let openBlock = null;
       segments.forEach((segment) => {
-        if (!tracked) {
-          container.appendChild(create("p", {
-            className: "aw-seg aw-seg--plain",
-            text: segment.correctedText || segment.text,
-          }));
+        const block = segmentBlock(segment);
+        if (block.kind !== "li") list = null;
+
+        // Nothing is marked in the clean view, so there is no reason for it to
+        // break one of the Raw Answer's paragraphs into a paragraph per sentence.
+        if (!tracked && block.kind === "p" && openBlock
+            && openBlock.index === segment.blockIndex) {
+          appendText(openBlock.node, " ");
+          appendBoldText(openBlock.node, block.corrected || block.text);
           return;
         }
+        openBlock = null;
 
-        // A sentence the KB had nothing on is marked; one where evidence was
-        // found and did not settle it is not. Both end as "not verifiable" and
-        // only the first is a gap the reader can act on.
-        const flavour = segment.severity
-          || (segment.unverifiableReason === "no_evidence" ? "no-evidence" : "");
-        const line = create("p", {
-          className: `aw-seg aw-seg--${segment.status}${flavour ? ` aw-seg--${flavour}` : ""}`,
-        });
-        if (segment.status === "unverifiable" && segment.unverifiableReason === "no_evidence") {
-          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
-          line.appendChild(create("small", {
-            className: "aw-seg__gap", text: t("noEvidenceInKb"),
-          }));
-          container.appendChild(line);
-          return;
-        }
+        const flavour = tracked
+          ? segment.severity || (segment.unverifiableReason === "no_evidence" ? "no-evidence" : "")
+          : "";
+        const status = tracked ? segment.status : "plain";
+        const className = `aw-seg aw-seg--${status}${flavour ? ` aw-seg--${flavour}` : ""}`;
 
-        if (segment.status === "corrected" && segment.correctedText) {
-          const wasClass = segment.severity === "severe" ? "aw-seg__was" : "aw-seg__text";
-          line.appendChild(create("span", { className: wasClass, text: segment.text }));
-          const fix = create("span", { className: "aw-seg__fix", text: segment.correctedText });
-          if (segment.verificationStatus) {
-            fix.dataset.verdict = t(`verification.${segment.verificationStatus}`)
-              || segment.verificationStatus;
+        if (block.kind === "li") {
+          if (!list) {
+            list = create("ul", { className: "aw-seg-list" });
+            container.appendChild(list);
           }
-          line.appendChild(fix);
-        } else {
-          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
+          const item = create("li", { className });
+          fillSegment(item, segment, tracked, block);
+          list.appendChild(item);
+          return;
         }
 
-        if (segment.riskNote) {
-          line.appendChild(create("small", { className: "aw-seg__note", text: segment.riskNote }));
-        }
+        const line = create("p", {
+          className: block.kind === "h" ? `${className} aw-seg--heading` : className,
+        });
+        fillSegment(line, segment, tracked, block);
         container.appendChild(line);
+        if (!tracked && block.kind === "p") {
+          openBlock = { index: segment.blockIndex, node: line };
+        }
       });
     }
 
