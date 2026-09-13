@@ -561,17 +561,53 @@ for (const property of ["border-left", "background", "color", "text-decoration"]
 // The note is smaller and a different colour, and it is a <small>.
 assert.match(workspaceUiJs, /create\("small", \{ className: "aw-seg__note"/,
   "the risk note is secondary text, not another paragraph");
-assert.match(workspaceCss, /\.aw-seg__note\s*{[^}]*font-size:\s*\.8/,
-  "the risk note must be smaller than the sentence it annotates");
-// Three things share the page and must not share a colour: a severe correction,
-// a minor one, and the note. Pinning the token names would just re-record
-// whatever was written last, so what is pinned is that they differ.
-const noteColour = /\.aw-seg__note\s*{[^}]*color:\s*var\((--aw-[a-z-]+)\)/.exec(workspaceCss);
-const severeColour = /\.aw-seg__fix\s*{[^}]*border-left:\s*2px solid var\((--aw-[a-z-]+)\)/.exec(workspaceCss);
-const minorColour = /\.aw-seg--minor \.aw-seg__text\s*{[^}]*border-left:\s*2px solid var\((--aw-[a-z-]+)\)/.exec(workspaceCss);
-assert.ok(noteColour && severeColour && minorColour, "all three need a declared colour");
-assert.equal(new Set([noteColour[1], severeColour[1], minorColour[1]]).size, 3,
-  `severe, minor and note must be three different colours, got ${[severeColour[1], minorColour[1], noteColour[1]].join(", ")}`);
+// Smaller than the sentence it annotates -- the exact fraction is the gallery's
+// (.diff-note is .95em), so what is pinned is that it is under 1em, not a number
+// that just re-records whatever was written last.
+const noteSize = /^\.aw-seg__note\s*{[^}]*font-size:\s*(\.\d+|0?\.\d+)em/m.exec(workspaceCss);
+assert.ok(noteSize, "the risk note needs a declared, relative font size");
+assert.ok(Number(noteSize[1]) < 1,
+  `the risk note must be smaller than the sentence it annotates, got ${noteSize[1]}em`);
+// Revisions are marked the way the case gallery marks them -- inline, with the
+// cut text struck where it stood and the replacement beside it -- not as a stack
+// of left-ruled callout blocks. These pin the vocabulary from cases.css.
+// Asserted on the rules that actually win: the block treatment they replaced is
+// still earlier in the file, and a regex that matches it proves nothing.
+const inlineDisplay = /\.aw-seg__text,\s*\.aw-seg__was,\s*\.aw-seg__fix\s*{[^}]*display:\s*inline/;
+assert.match(workspaceCss, inlineDisplay,
+  "revision marks must be inline, so a corrected paragraph still reads as a paragraph");
+
+// Anchored to the start of a line so a compound selector like
+// ".aw-seg__was + .aw-seg__fix" is not mistaken for the rule itself.
+const struck = /^\.aw-seg__was\s*{([^}]*)}/gm;
+const struckRule = [...workspaceCss.matchAll(struck)].pop();
+assert.ok(struckRule, "removed text must be struck wherever it appears");
+// Phrase-level diffs put deletions inside minor corrections too, so the
+// treatment cannot be gated on severity.
+assert.ok(!/\.aw-seg--severe \.aw-seg__was\s*{/.test(workspaceCss),
+  "the struck treatment must not be scoped to severe segments");
+assert.match(struckRule[1], /background:\s*#fee2e2/i, "struck text uses the gallery's red");
+assert.match(struckRule[1], /line-through/, "struck text must actually be struck");
+
+const added = /^\.aw-seg__fix\s*{([^}]*)}/gm;
+const addedRule = [...workspaceCss.matchAll(added)].pop();
+assert.ok(addedRule, "a correction needs its replacement marked");
+assert.match(addedRule[1], /background:\s*#dcfce7/i, "added text uses the gallery's green");
+assert.match(addedRule[1], /border-bottom:\s*2px solid #16a34a/i, "added text is underlined green");
+
+const noteRule = [...workspaceCss.matchAll(/^\.aw-seg__note\s*{([^}]*)}/gm)].pop();
+assert.ok(noteRule, "the risk note needs a rule");
+assert.match(noteRule[1], /background:\s*#fef3c7/i, "the note is the gallery's amber aside");
+assert.match(noteRule[1], /border-left:\s*3px solid #2563eb/i, "the note carries the gallery's blue edge");
+assert.match(workspaceCss, /\.aw-seg__note::before\s*{[^}]*content:\s*"✋ Anchor: "/,
+  "the note says who is speaking, as the gallery does");
+// Struck, added and note must still be three different grounds.
+const grounds = ["#fee2e2", "#dcfce7", "#fef3c7"];
+assert.equal(new Set(grounds).size, 3, "struck, added and note must not share a background");
+
+// Indentation follows the gallery's list and prose metrics.
+assert.match(workspaceCss, /\.aw-seg-list\s*{[^}]*padding-left:\s*22px/,
+  "list indentation must match the gallery's 22px");
 
 // A verdict that could not be settled is not a finding, and must not be painted
 // as one -- it was 68% of verdicts, and colouring it made 41% of the answer red.
@@ -600,10 +636,18 @@ assert.match(workspaceAdapterJs, /unverifiableReason: optionalText\(segment\.unv
   "the adapter must carry why a sentence was unverifiable");
 assert.match(workspaceUiJs, /unverifiableReason === "no_evidence"/,
   "only the no-coverage case may be marked");
-const noEvidence = /\.aw-seg--no-evidence \.aw-seg__text\s*{([^}]*)}/.exec(workspaceCss);
+// The gallery has no mark for "we had nothing on this", so the sentence carries
+// none and the gap is said in an aside (.corr-caveat: grey, italic, smaller).
+// A gap must never borrow the struck red or the added green.
+const noEvidence = /^\.aw-seg--no-evidence \.aw-seg__text\s*{([^}]*)}/m.exec(workspaceCss);
 assert.ok(noEvidence, "the no-coverage case needs its own style");
-assert.match(noEvidence[1], /dashed/,
+assert.match(noEvidence[1], /border-left:\s*0/,
   "a coverage gap must not look like a finding against the sentence");
+const gap = /^\.aw-seg__gap\s*{([^}]*)}/m.exec(workspaceCss);
+assert.ok(gap, "the gap needs its own aside style");
+assert.match(gap[1], /font-style:\s*italic/, "the gap is an aside, not a verdict");
+assert.ok(!/#fee2e2|#dcfce7/i.test(gap[1]),
+  "a coverage gap must not borrow the struck or added colour");
 
 // Category patterns ran over the reason text of every non-supported verdict,
 // so a not_verifiable claim whose reason mentioned a percentage came back
@@ -656,3 +700,20 @@ assert.equal((annotated[0].match(/appendBoldText/g) || []).length >= 4, true,
 // next to a disc.
 assert.match(workspaceUiJs, /corrected:\s*corrected \? corrected\.replace\(LIST_ITEM_RE, ""\)/,
   "a corrected bullet must lose its literal marker like the original does");
+
+// Corrections arrive whole -- sentence and replacement -- while the gallery's
+// marks are built for the phrase that changed. Rendering the pair directly
+// printed the sentence twice, once plain and once in green.
+assert.match(workspaceUiJs, /function diffTokens\s*\(/,
+  "the corrected panel must diff the pair, not print both halves");
+assert.match(workspaceUiJs, /const runs = diffTokens\(blockText, corrected\)/,
+  "the renderer must use the diff");
+assert.match(workspaceUiJs, /DIFF_TOKEN_CAP/,
+  "the quadratic table needs a guard, with whole-sentence marking as the fallback");
+
+// Chinese diffs per character, so a reworded clause returns as a dozen
+// one-character marks separated by two-character gaps -- accurate and unreadable.
+assert.match(workspaceUiJs, /function compactRuns\s*\(/,
+  "short unchanged runs between two marks must be absorbed, not left as confetti");
+assert.match(workspaceUiJs, /MIN_UNCHANGED_RUN/,
+  "the compaction threshold must be named, not inlined");

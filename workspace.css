@@ -1955,7 +1955,7 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
 
 .aw-seg { margin: 0 0 .6em; line-height: 1.75; }
 .aw-seg:last-child { margin-bottom: 0; }
-.aw-seg__text, .aw-seg__was, .aw-seg__fix { display: block; }
+
 
 /* 未核验、未检查：不标。它们不是对这句话的判定。 */
 .aw-seg--unverifiable .aw-seg__text,
@@ -1966,80 +1966,27 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
 }
 
 /* 核验通过：一道细绿槽。原文一个字不动。 */
-.aw-seg--verified .aw-seg__text {
-  border-left: 2px solid var(--aw-b);
-  padding-left: .65em;
-}
+
 
 /* 轻微：部分成立。原句留着不划线，下面挂一条琥珀色的分半说明。 */
-.aw-seg--minor .aw-seg__text {
-  border-left: 2px solid var(--aw-warning);
-  padding-left: .65em;
-}
-.aw-seg--minor .aw-seg__fix {
-  background: var(--aw-warning-soft);
-  border-left-color: var(--aw-warning);
-}
-.aw-seg--minor .aw-seg__fix[data-verdict]::before { color: var(--aw-warning); }
+
+
+
 
 /* 严重：证据反对它。原句划掉，改写紧随其后。 */
-.aw-seg--severe .aw-seg__was {
-  border-left: 2px solid var(--aw-a);
-  padding-left: .65em;
-  color: var(--aw-muted);
-  text-decoration: line-through;
-  text-decoration-color: var(--aw-a);
-  text-decoration-thickness: 1px;
-  margin-bottom: .3em;
-}
 
-.aw-seg__fix {
-  margin-top: .3em;
-  padding: .5em .75em;
-  background: var(--aw-a-soft);
-  border-left: 2px solid var(--aw-a);
-  border-radius: 0 4px 4px 0;
-  color: var(--aw-text);
-}
-.aw-seg__fix[data-verdict]::before {
-  content: attr(data-verdict);
-  display: block;
-  font-size: .68em;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: var(--aw-a);
-  margin-bottom: .2em;
-}
+
+
+
 
 /* 风险备注：只出现在严重那一档。换色、缩小。
    现在占正文约 5%，稀少到值得一读。 */
-.aw-seg__note {
-  display: block;
-  margin-top: .32em;
-  padding: .42em .75em;
-  font-size: .82em;
-  line-height: 1.62;
-  color: var(--aw-c);
-  background: var(--aw-c-soft);
-  border-left: 2px solid var(--aw-c);
-  border-radius: 0 4px 4px 0;
-}
+
 
 /* 库里没有相关证据。这不是对句子的判定，是覆盖面的缺口 ——
    用一道虚线槽和一行小字说明，与"证据反对它"明确区分开。 */
-.aw-seg--no-evidence .aw-seg__text {
-  border-left: 2px dashed var(--aw-faint);
-  padding-left: .65em;
-  color: var(--aw-muted);
-}
-.aw-seg__gap {
-  display: block;
-  margin-top: .28em;
-  padding-left: .65em;
-  font-size: .78em;
-  line-height: 1.55;
-  color: var(--aw-faint);
-}
+
+
 
 /* clean 模式：只有字。没有槽、没有色块、没有徽标、没有备注 ——
    改写后的措辞本身就带着告诫，装饰再重复一遍只是噪声。 */
@@ -2196,3 +2143,141 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   background: #fcfdfe;
 }
 .aw-panel-foot .aw-ghost-button { font-size: 12px; }
+
+/* ---- v40 parity, pass 3: the corrected prose --------------------------------
+   The gallery marks revisions inline, the way a tracked document does: the cut
+   text struck in red where it stood, the replacement in green right after it,
+   and Anchor's own remark as an aside. The workspace had built each of those as
+   a block with a coloured rule down its left edge, which reads as a stack of
+   callouts rather than as a revised paragraph. Classes and colours below are
+   .diff-del / .diff-add / .diff-note / .corr-caveat from cases.css. */
+
+.aw-seg__text,
+.aw-seg__was,
+.aw-seg__fix {
+  display: inline;
+}
+
+/* Struck: what Anchor removed, left where it was. (.diff-del) */
+.aw-seg__was {
+  padding: 1px 3px;
+  border-left: 0;
+  border-radius: 3px;
+  background: #fee2e2;
+  color: #7f1d1d;
+  text-decoration: line-through;
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 2px;
+}
+.aw-seg__was::before {
+  content: "⌫";
+  display: inline-block;
+  margin-right: 2px;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+/* Added: what Anchor put in its place. (.diff-add) */
+.aw-seg__fix {
+  margin: 0;
+  padding: 1px 3px;
+  border: 0;
+  border-bottom: 2px solid #16a34a;
+  border-radius: 3px;
+  background: #dcfce7;
+  color: inherit;
+  cursor: help;
+}
+.aw-seg__fix::before {
+  content: "＋";
+  margin-right: 2px;
+  color: #16a34a;
+  font-size: 10px;
+  font-weight: 800;
+}
+/* The verdict moves to the tooltip the gallery uses; the glyph and the colour
+   carry it at a glance, and panel C carries it in full. The rule this replaces
+   printed the verdict as a block caption, and inheriting that display put the
+   glyph on a line of its own with the phrase wrapped underneath it. */
+.aw-seg__fix[data-verdict]::before {
+  display: inline;
+  content: "＋";
+  margin-right: 2px;
+  color: #16a34a;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.aw-seg--minor .aw-seg__fix,
+.aw-seg--minor .aw-seg__fix[data-verdict]::before {
+  background: #dcfce7;
+  border-bottom-color: #16a34a;
+  color: inherit;
+}
+.aw-seg--minor .aw-seg__fix::before { color: #16a34a; }
+.aw-seg--minor .aw-seg__text {
+  border-left: 0;
+  padding-left: 0;
+}
+
+/* Anchor speaking about the sentence rather than rewriting it. (.diff-note) */
+.aw-seg__note {
+  display: inline;
+  margin: 0 0 0 3px;
+  padding: 2px 6px 2px 4px;
+  border-left: 3px solid #2563eb;
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #1e40af;
+  font-size: .95em;
+  line-height: inherit;
+}
+.aw-seg__note::before {
+  content: "✋ Anchor: ";
+  color: #2563eb;
+  font-size: .85em;
+  font-weight: 600;
+}
+
+/* A gap in coverage is not a verdict on the sentence. (.corr-caveat) */
+.aw-seg--no-evidence .aw-seg__text {
+  border-left: 0;
+  padding-left: 0;
+  color: inherit;
+}
+.aw-seg__gap {
+  display: inline;
+  margin-left: 4px;
+  padding-left: 0;
+  color: #64748b;
+  font-size: .93em;
+  font-style: italic;
+}
+
+/* Evidence carries it: the lightest possible mark, since most of a good answer
+   is this and a rule down every other line is just striping. */
+.aw-seg--verified .aw-seg__text {
+  border-left: 0;
+  padding-left: 0;
+  border-bottom: 1px solid #bbf7d0;
+}
+
+/* Indentation and leading follow .v7-corr / .clinical-action ul. */
+.aw-answer .aw-seg,
+.aw-seg--plain {
+  line-height: 1.66;
+}
+.aw-seg-list {
+  padding-left: 22px;
+}
+.aw-seg-list > .aw-seg {
+  margin: 6px 0;
+  padding-left: 0;
+}
+
+/* Phrase-level marks sit inside a running line; only a replacement that follows
+   struck text needs to be held off it. */
+.aw-seg__was + .aw-seg__fix { margin-left: 2px; }

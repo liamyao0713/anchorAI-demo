@@ -697,6 +697,17 @@
         });
       });
 
+      // The knob between the two labels reads as the control -- people aim at a
+      // switch, not at the word beside it -- so clicking it flips to whichever
+      // mode is not current. The labels stay the focusable controls.
+      if (refs.correctedModeSwitch) {
+        refs.correctedModeSwitch.addEventListener("click", () => {
+          const next = state.correctedMode === "tracked" ? "clean" : "tracked";
+          state = State.setCorrectedMode(state, next);
+          renderCorrectedPanel();
+        });
+      }
+
       refs.panelTabs.forEach((button) => {
         button.addEventListener("click", () => {
           state = State.setActivePanel(state, button.dataset.panel);
@@ -1197,6 +1208,93 @@
     const LIST_ITEM_RE = /^[-*\u2022]\s+/;
     const HEADING_RE = /^(?:#{1,4}\s+|\*\*[^*]+\*\*[：:]?$)/;
 
+    // The gallery marks the phrase that changed, not the sentence that contains
+    // it: a few red struck words where text was cut, a few green ones where it
+    // was added, and the rest of the line untouched. Our corrections arrive whole
+    // -- "here is the sentence, here is its replacement" -- so rendering them as
+    // was/fix printed the sentence twice, once plain and once in green.
+    // Diffing the pair recovers the phrase level the marks are designed for.
+    const TOKEN_RE = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]|[A-Za-z0-9][A-Za-z0-9.,%-]*|\s+|./gu;
+
+    function tokenize(text) {
+      return String(text || "").match(TOKEN_RE) || [];
+    }
+
+    // Longest common subsequence over tokens. Sentences are short enough that the
+    // quadratic table is cheaper than being clever, and a guard keeps a runaway
+    // pair from costing anything: past the cap the caller falls back to whole-
+    // sentence marking, which is correct, just coarser.
+    const DIFF_TOKEN_CAP = 400;
+
+    function diffTokens(before, after) {
+      const a = tokenize(before);
+      const b = tokenize(after);
+      if (a.length > DIFF_TOKEN_CAP || b.length > DIFF_TOKEN_CAP) return null;
+      const rows = a.length + 1;
+      const cols = b.length + 1;
+      const table = new Uint16Array(rows * cols);
+      for (let i = a.length - 1; i >= 0; i -= 1) {
+        for (let j = b.length - 1; j >= 0; j -= 1) {
+          table[i * cols + j] = a[i] === b[j]
+            ? table[(i + 1) * cols + j + 1] + 1
+            : Math.max(table[(i + 1) * cols + j], table[i * cols + j + 1]);
+        }
+      }
+      const runs = [];
+      const push = (type, text) => {
+        const last = runs[runs.length - 1];
+        if (last && last.type === type) last.text += text;
+        else runs.push({ type, text });
+      };
+      let i = 0;
+      let j = 0;
+      while (i < a.length && j < b.length) {
+        if (a[i] === b[j]) { push("same", a[i]); i += 1; j += 1; }
+        else if (table[(i + 1) * cols + j] >= table[i * cols + j + 1]) { push("del", a[i]); i += 1; }
+        else { push("ins", b[j]); j += 1; }
+      }
+      while (i < a.length) { push("del", a[i]); i += 1; }
+      while (j < b.length) { push("ins", b[j]); j += 1; }
+      // Whitespace-only marks are noise; fold them into the surrounding text.
+      return compactRuns(runs.filter((run) => run.type === "same" || run.text.trim()));
+    }
+
+    // Chinese diffs character by character, so a reworded clause comes back as a
+    // dozen one-character marks with two-character gaps between them -- true, and
+    // unreadable. Where a run of unchanged text is shorter than this, it is
+    // cheaper to re-mark it than to break the phrase around it, which is how the
+    // gallery's marks look: a few chunky spans, not confetti.
+    const MIN_UNCHANGED_RUN = 4;
+
+    function compactRuns(runs) {
+      const out = [];
+      for (let i = 0; i < runs.length; i += 1) {
+        const run = runs[i];
+        const previous = out[out.length - 1];
+        if (run.type === "same" && run.text.length < MIN_UNCHANGED_RUN
+            && previous && previous.type !== "same") {
+          const next = runs[i + 1];
+          if (next && next.type !== "same") {
+            if (previous.type === next.type) {
+              // Same side both ways: one run, not two with the text repeated in
+              // the middle -- that is what produced "provided provided".
+              previous.text += run.text + next.text;
+              i += 1;
+              continue;
+            }
+            // Opposite sides: the text was neither cut nor added, so it has to
+            // stand in the deletion and in the insertion both.
+            previous.text += run.text;
+            next.text = run.text + next.text;
+            continue;
+          }
+        }
+        if (previous && previous.type === run.type) previous.text += run.text;
+        else out.push({ ...run });
+      }
+      return out;
+    }
+
     function segmentBlock(segment) {
       const text = String(segment.text || "");
       // The correction is built from the claim, which keeps the bullet the
@@ -1241,6 +1339,35 @@
       }
 
       if (segment.status === "corrected" && corrected) {
+        const verdictLabel = segment.verificationStatus
+          ? t(`verification.${segment.verificationStatus}`) || segment.verificationStatus
+          : null;
+        const runs = diffTokens(blockText, corrected);
+        if (runs) {
+          runs.forEach((run) => {
+            if (run.type === "same") {
+              const span = create("span", { className: "aw-seg__text" });
+              appendBoldText(span, run.text);
+              line.appendChild(span);
+              return;
+            }
+            const span = create("span", {
+              className: run.type === "del" ? "aw-seg__was" : "aw-seg__fix",
+            });
+            appendBoldText(span, run.text);
+            // The title is the whole of it; data-verdict drove a block caption
+            // that phrase-level marks have no room for.
+            if (verdictLabel) span.title = verdictLabel;
+            line.appendChild(span);
+          });
+          if (segment.riskNote) {
+            line.appendChild(create("small", { className: "aw-seg__note", text: segment.riskNote }));
+          }
+          return;
+        }
+
+        // Too long to diff: fall back to marking the whole sentence, which is
+        // correct, just coarser than the gallery's phrase-level marks.
         const was = create("span", {
           className: segment.severity === "severe" ? "aw-seg__was" : "aw-seg__text",
         });
@@ -1249,8 +1376,13 @@
         const fix = create("span", { className: "aw-seg__fix" });
         appendBoldText(fix, corrected);
         if (segment.verificationStatus) {
-          fix.dataset.verdict = t(`verification.${segment.verificationStatus}`)
+          const verdict = t(`verification.${segment.verificationStatus}`)
             || segment.verificationStatus;
+          fix.dataset.verdict = verdict;
+          // The gallery marks a revision with a glyph and a colour and puts the
+          // reason in the tooltip; the verdict was a block caption above every
+          // fix, which is what turned a revised paragraph into a stack of cards.
+          fix.title = verdict;
         }
         line.appendChild(fix);
       } else {
@@ -1979,6 +2111,7 @@
       correctedText: required(root, "#aw-corrected-text"),
       correctedReferences: required(root, "#aw-corrected-references"),
       correctedModeButtons: Array.from(root.querySelectorAll(".aw-mode-button")),
+      correctedModeSwitch: root.querySelector(".aw-switch"),
       copyCorrectedButton: required(root, "#aw-copy-corrected"),
       auditTabs: Array.from(root.querySelectorAll(".aw-audit-tab")),
       auditPanels: Array.from(root.querySelectorAll(".aw-audit-panel")),
