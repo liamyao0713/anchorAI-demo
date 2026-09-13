@@ -490,6 +490,43 @@ assert.equal(/function supportedPortion\s*\(/.test(adapterSource), false,
 assert.equal(/function unsupportedPortion\s*\(/.test(adapterSource), false,
   "portions must be read from the backend, never derived in the frontend");
 
+// ── 逐句标注：只有改动过的句子才允许带视觉标记 ──────────────────
+//
+// The whole point of the annotated answer is that the Raw Answer survives and
+// only what changed is marked. A rule that paints every sentence would look
+// like a feature and destroy the signal, so the "verified" and "unchecked"
+// styles are pinned to the two things they may do: a left rule and a colour.
+
+assert.match(js, /function renderAnnotatedAnswer\s*\(/,
+  "the corrected panel must render the Raw Answer sentence by sentence");
+assert.match(js, /Array\.isArray\(payload\.annotated_answer\)/,
+  "annotated_answer must be read from the payload, not reconstructed");
+assert.match(js, /setText\(correctedText, corrected\.text \|\| correctedFallbackText\(status\)\)/,
+  "an older API with no annotated_answer must still render the claim-by-claim text");
+
+// A corrected sentence carries its replacement and the verdict that produced it.
+assert.match(js, /aw-seg__fix/, "a corrected sentence needs its replacement text");
+assert.match(js, /dataset\.verdict/, "the replacement must carry the verification status");
+
+// The note is smaller and a different colour, and it is a <small>, not a <p>.
+assert.match(js, /document\.createElement\("small"\)/,
+  "the risk note is secondary text, not another paragraph");
+assert.match(css, /\.aw-seg__note\s*{[^}]*font-size:\s*\.8/,
+  "the risk note must be smaller than the sentence it annotates");
+assert.match(css, /\.aw-seg__note\s*{[^}]*color:\s*var\(--aw-warning\)/,
+  "the risk note must not reuse the correction colour");
+assert.match(css, /\.aw-seg__fix\s*{[^}]*var\(--aw-a-soft\)/,
+  "a correction must be visually distinct from its note");
+
+// A verified sentence gets a rule, never a background fill or a strikethrough:
+// it is the model's text, unchanged, and must read as such.
+const verifiedBlock = /\.aw-seg--verified \.aw-seg__text\s*{([^}]*)}/.exec(css);
+assert.ok(verifiedBlock, "verified sentences need a style block");
+assert.equal(/background/.test(verifiedBlock[1]), false,
+  "a sentence nothing was wrong with must not be highlighted");
+assert.equal(/line-through/.test(verifiedBlock[1]), false,
+  "a sentence nothing was wrong with must not be struck out");
+
 console.log("frontend static checks passed");
 
 function pickError(errorInfo) {

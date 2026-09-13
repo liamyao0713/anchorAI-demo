@@ -727,8 +727,52 @@
     const status = statusMeta(corrected.evidence_status);
     renderStatus(correctedStatus, status);
     renderCorrectedSummary(correctedMeta, payload, status);
-    setText(correctedText, corrected.text || correctedFallbackText(status));
+    const segments = Array.isArray(payload.annotated_answer) ? payload.annotated_answer : [];
+    if (segments.length) {
+      renderAnnotatedAnswer(correctedText, segments);
+    } else {
+      // An older API, or a Raw Answer that arrived as something other than text.
+      setText(correctedText, corrected.text || correctedFallbackText(status));
+    }
     renderCorrectedCitations(correctedCitations, payload.citations || []);
+  }
+
+  // The Raw Answer, sentence by sentence, with only what changed marked. A
+  // sentence nothing was wrong with is printed exactly as the model wrote it --
+  // no colour, no badge, nothing for the eye to catch on. The point of colour
+  // here is that it means something, which it stops doing if everything has it.
+  function renderAnnotatedAnswer(container, segments) {
+    replaceChildren(container);
+    segments.forEach((segment) => {
+      const status = segment && segment.status;
+      const line = document.createElement("p");
+      line.className = `aw-seg aw-seg--${status === "corrected" || status === "verified" || status === "unchecked" ? status : "unchecked"}`;
+
+      const original = document.createElement("span");
+      original.className = "aw-seg__text";
+      original.textContent = valueOrDash(segment && segment.text);
+      line.appendChild(original);
+
+      const corrected = segment && segment.corrected_text;
+      if (status === "corrected" && corrected) {
+        const fix = document.createElement("span");
+        fix.className = "aw-seg__fix";
+        // The verification status is on the element, not spelled out in prose,
+        // so the correction reads as a correction rather than as more sentences.
+        fix.dataset.verdict = valueOrDash(segment.verification_status);
+        fix.textContent = corrected;
+        line.appendChild(fix);
+      }
+
+      const note = segment && segment.risk_note;
+      if (note) {
+        const aside = document.createElement("small");
+        aside.className = "aw-seg__note";
+        aside.textContent = note;
+        line.appendChild(aside);
+      }
+      container.appendChild(line);
+    });
   }
 
   function renderUnavailable(correctedText, correctedStatus, correctedMeta, correctedCitations) {

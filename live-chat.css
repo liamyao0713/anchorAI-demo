@@ -373,3 +373,73 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* ── 逐句标注的校准回答 ────────────────────────────────────────
+   原文是主体。没被改动的句子不带任何视觉标记 —— 颜色只有在稀少时
+   才有意义，全都上色就等于都没上。三种状态只有两种看得见。          */
+
+.aw-seg {
+  margin: 0 0 .55em;
+  line-height: 1.72;
+}
+.aw-seg:last-child { margin-bottom: 0; }
+
+/* 未被论断覆盖到 = 没检查过，不是"没问题"。不加颜色，
+   但左侧留一道极淡的槽，让读者能看出它和"已核验"不是一回事。 */
+.aw-seg--unchecked .aw-seg__text {
+  border-left: 2px solid var(--aw-border);
+  padding-left: .6em;
+  color: var(--aw-muted);
+}
+
+/* 核验通过：原样照录，只用一道细绿槽表示"这句查过且站得住"。 */
+.aw-seg--verified .aw-seg__text {
+  border-left: 2px solid var(--aw-b);
+  padding-left: .6em;
+}
+
+/* 被矫正：原句划去，替换文本紧随其后。 */
+.aw-seg--corrected .aw-seg__text {
+  border-left: 2px solid var(--aw-a);
+  padding-left: .6em;
+  color: var(--aw-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--aw-a);
+  text-decoration-thickness: 1px;
+}
+.aw-seg__fix {
+  display: block;
+  margin-top: .3em;
+  padding: .45em .7em;
+  background: var(--aw-a-soft);
+  border-left: 2px solid var(--aw-a);
+  color: var(--aw-text);
+  border-radius: 0 4px 4px 0;
+}
+.aw-seg__fix::before {
+  content: attr(data-verdict);
+  display: block;
+  font-size: .68em;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--aw-a);
+  margin-bottom: .18em;
+}
+
+/* 风险备注：换色、缩小。它是提醒，不该和正文抢注意力，
+   但也不能小到读者略过。0.82em 是能读又明显次级的分寸。 */
+.aw-seg__note {
+  display: block;
+  margin-top: .3em;
+  padding: .4em .7em;
+  font-size: .82em;
+  line-height: 1.6;
+  color: var(--aw-warning);
+  background: var(--aw-warning-soft);
+  border-left: 2px solid var(--aw-warning);
+  border-radius: 0 4px 4px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aw-seg, .aw-seg__fix, .aw-seg__note { transition: none; }
+}
