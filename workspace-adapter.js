@@ -122,12 +122,15 @@
       .map((segment) => {
         const text = segment && typeof segment.text === "string" ? segment.text : "";
         if (!text) return null;
-        const status = segment.status === "verified" || segment.status === "corrected"
-          ? segment.status
-          : "unchecked";
+        const known = ["verified", "corrected", "unverifiable", "unchecked"];
+        const status = known.includes(segment.status) ? segment.status : "unchecked";
+        const severity = segment.severity === "severe" || segment.severity === "minor"
+          ? segment.severity
+          : null;
         return {
           text,
           status,
+          severity,
           verificationStatus: optionalText(segment.verification_status),
           correctedText: optionalText(segment.corrected_text),
           retainedRatio:

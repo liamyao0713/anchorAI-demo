@@ -535,10 +535,24 @@ assert.match(workspaceUiJs, /create\("small", \{ className: "aw-seg__note"/,
   "the risk note is secondary text, not another paragraph");
 assert.match(workspaceCss, /\.aw-seg__note\s*{[^}]*font-size:\s*\.8/,
   "the risk note must be smaller than the sentence it annotates");
-assert.match(workspaceCss, /\.aw-seg__note\s*{[^}]*color:\s*var\(--aw-warning\)/,
-  "the risk note must not reuse the correction colour");
-assert.match(workspaceCss, /\.aw-seg__fix\s*{[^}]*var\(--aw-a-soft\)/,
-  "a correction must be visually distinct from its note");
+// Three things share the page and must not share a colour: a severe correction,
+// a minor one, and the note. Pinning the token names would just re-record
+// whatever was written last, so what is pinned is that they differ.
+const noteColour = /\.aw-seg__note\s*{[^}]*color:\s*var\((--aw-[a-z-]+)\)/.exec(workspaceCss);
+const severeColour = /\.aw-seg__fix\s*{[^}]*border-left:\s*2px solid var\((--aw-[a-z-]+)\)/.exec(workspaceCss);
+const minorColour = /\.aw-seg--minor \.aw-seg__text\s*{[^}]*border-left:\s*2px solid var\((--aw-[a-z-]+)\)/.exec(workspaceCss);
+assert.ok(noteColour && severeColour && minorColour, "all three need a declared colour");
+assert.equal(new Set([noteColour[1], severeColour[1], minorColour[1]]).size, 3,
+  `severe, minor and note must be three different colours, got ${[severeColour[1], minorColour[1], noteColour[1]].join(", ")}`);
+
+// A verdict that could not be settled is not a finding, and must not be painted
+// as one -- it was 68% of verdicts, and colouring it made 41% of the answer red.
+const unverifiable = /\.aw-seg--unverifiable \.aw-seg__text[^{]*{([^}]*)}/.exec(workspaceCss);
+assert.ok(unverifiable, "unverifiable sentences need an explicit no-marking rule");
+assert.match(unverifiable[1], /border-left:\s*0/,
+  "an unverifiable sentence must carry no rule");
+assert.match(workspaceUiJs, /SEVERITY|severity/,
+  "the renderer must read the severity the backend graded");
 
 // A verified sentence gets a rule, never a fill or a strikethrough: it is the
 // model's own text, unchanged, and has to read that way.

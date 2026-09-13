@@ -1968,29 +1968,43 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
 }
 
 /* ── 逐句标注的校准回答 ────────────────────────────────────────
-   原文是文档本体。只有证据不认的句子带标记 —— 颜色稀少才有意义，
-   全都上色就等于都没上。三种状态里只有一种是显眼的。            */
+   原文是文档本体。只有证据真的不认的句子带颜色。
+
+   实测六个回答：68% 的判定是 not_verifiable —— 多半只是 KB 没覆盖
+   那个主题。把它们也标红之后，41% 的正文变成红色、40% 的句子挂着
+   橙色警告，颜色和警告双双失去意义。现在只标两种，占正文 17%。   */
 
 .aw-seg { margin: 0 0 .6em; line-height: 1.75; }
 .aw-seg:last-child { margin-bottom: 0; }
 .aw-seg__text, .aw-seg__was, .aw-seg__fix { display: block; }
 
-/* 核验通过：原样照录，一道细绿槽表示"查过且站得住"。 */
+/* 未核验、未检查：不标。它们不是对这句话的判定。 */
+.aw-seg--unverifiable .aw-seg__text,
+.aw-seg--unchecked .aw-seg__text {
+  border-left: 0;
+  padding-left: 0;
+  color: inherit;
+}
+
+/* 核验通过：一道细绿槽。原文一个字不动。 */
 .aw-seg--verified .aw-seg__text {
   border-left: 2px solid var(--aw-b);
   padding-left: .65em;
 }
 
-/* 没有论断对上 = 没检查过，不是"没问题"。灰字、极淡的槽，
-   与 verified 明确区分开。 */
-.aw-seg--unchecked .aw-seg__text {
-  border-left: 2px solid var(--aw-border);
+/* 轻微：部分成立。原句留着不划线，下面挂一条琥珀色的分半说明。 */
+.aw-seg--minor .aw-seg__text {
+  border-left: 2px solid var(--aw-warning);
   padding-left: .65em;
-  color: var(--aw-muted);
 }
+.aw-seg--minor .aw-seg__fix {
+  background: var(--aw-warning-soft);
+  border-left-color: var(--aw-warning);
+}
+.aw-seg--minor .aw-seg__fix[data-verdict]::before { color: var(--aw-warning); }
 
-/* tracked 模式下才出现：被替换掉的原句。 */
-.aw-seg__was {
+/* 严重：证据反对它。原句划掉，改写紧随其后。 */
+.aw-seg--severe .aw-seg__was {
   border-left: 2px solid var(--aw-a);
   padding-left: .65em;
   color: var(--aw-muted);
@@ -2000,8 +2014,8 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   margin-bottom: .3em;
 }
 
-/* 改写后的句子。clean 模式下它单独出现，tracked 模式下跟在原句下面。 */
 .aw-seg__fix {
+  margin-top: .3em;
   padding: .5em .75em;
   background: var(--aw-a-soft);
   border-left: 2px solid var(--aw-a);
@@ -2018,16 +2032,16 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   margin-bottom: .2em;
 }
 
-/* 风险备注：换色、缩小。它是次级提醒，不该和正文抢注意力，
-   但 0.82em 仍然读得清。 */
+/* 风险备注：只出现在严重那一档。换色、缩小。
+   现在占正文约 5%，稀少到值得一读。 */
 .aw-seg__note {
   display: block;
   margin-top: .32em;
   padding: .42em .75em;
   font-size: .82em;
   line-height: 1.62;
-  color: var(--aw-warning);
-  background: var(--aw-warning-soft);
-  border-left: 2px solid var(--aw-warning);
+  color: var(--aw-c);
+  background: var(--aw-c-soft);
+  border-left: 2px solid var(--aw-c);
   border-radius: 0 4px 4px 0;
 }

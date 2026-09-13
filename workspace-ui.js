@@ -1201,11 +1201,15 @@
     function renderAnnotatedAnswer(container, segments, tracked) {
       replaceChildren(container);
       segments.forEach((segment) => {
-        const line = create("p", { className: `aw-seg aw-seg--${segment.status}` });
+        const severity = segment.severity ? ` aw-seg--${segment.severity}` : "";
+        const line = create("p", { className: `aw-seg aw-seg--${segment.status}${severity}` });
 
         if (segment.status === "corrected" && segment.correctedText) {
-          if (tracked) {
-            line.appendChild(create("span", { className: "aw-seg__was", text: segment.text }));
+          // Severe strikes the original out; minor leaves it standing, because
+          // part of it does. Either way the original stays on the page.
+          const wasClass = segment.severity === "severe" ? "aw-seg__was" : "aw-seg__text";
+          if (tracked || segment.severity === "minor") {
+            line.appendChild(create("span", { className: wasClass, text: segment.text }));
           }
           const fix = create("span", { className: "aw-seg__fix", text: segment.correctedText });
           if (segment.verificationStatus) {
