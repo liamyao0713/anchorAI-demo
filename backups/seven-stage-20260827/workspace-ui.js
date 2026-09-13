@@ -205,8 +205,8 @@
       noRunDetails: "Run details will appear after a response is returned.",
       noRawAnswer: "Raw answer has not been generated.",
       correctedPending: "Anchor-corrected answer will appear after the run finishes.",
-      noEvidenceInKb: "Anchor KB holds no evidence on this",
       noTextReturned: "No text returned.",
+      flaggedClaims: "Flagged claims",
       correctedReferences: "Corrected-version references ({count})",
       noAnchorCitations: "No Anchor citations returned.",
       noExternalLink: "No external link",
@@ -240,7 +240,6 @@
       materialCorrectionFallback: "No material correction was required.",
       stageRaw: "Raw answer",
       stageRetrieval: "Evidence search",
-      stageClaimRetrieval: "Per-claim evidence search",
       stageExtraction: "Claim extraction",
       stageVerification: "Claim check",
       stageCorrection: "Correction",
@@ -272,17 +271,6 @@
       correctionUnsupportedPortion: "Unsupported portion",
       correctionCorrectedWording: "Corrected wording",
       correctionNoSubClause: "The backend did not return sub-clause verification for this claim.",
-      correctionSubclauses: "Clause-level verification",
-      correctionReasonCode: "Reason code",
-      reasonCode_evidence_supports_claim: "Evidence supports the claim",
-      reasonCode_mixed_clause_support: "Some clauses are supported, others are not",
-      reasonCode_exact_value_not_verified: "The exact figures were not verified",
-      reasonCode_insufficient_topic_coverage: "Retrieved evidence does not cover this topic",
-      reasonCode_query_not_understood: "The query could not be mapped to the knowledge base",
-      reasonCode_no_relevant_evidence: "Relevant evidence was found and does not support this",
-      reasonCode_evidence_contradicts_claim: "Evidence contradicts the claim",
-      reasonCode_evidence_sources_conflict: "Sources disagree with each other",
-      reasonCode_retrieval_unavailable: "Retrieval was unavailable for this claim",
       correctionNothingVerified: "No part of this claim could be verified from the available Anchor evidence.",
       correctionConflictingResult: "Anchor evidence conflicts with this claim; see Reason and the conflicting evidence below.",
       correctionNumbersNotVerified: "The exact numerical values could not be verified from the available Anchor evidence.",
@@ -483,8 +471,8 @@
       noRunDetails: "响应返回后会显示运行详情。",
       noRawAnswer: "尚未生成原始回答。",
       correctedPending: "运行完成后会显示 Anchor 校正回答。",
-      noEvidenceInKb: "Anchor 知识库中没有相关证据",
       noTextReturned: "未返回文本。",
+      flaggedClaims: "标记的 claims",
       correctedReferences: "校正版参考文献（{count}）",
       noAnchorCitations: "未返回 Anchor citation。",
       noExternalLink: "无外部链接",
@@ -518,7 +506,6 @@
       materialCorrectionFallback: "无需实质性校正。",
       stageRaw: "原始回答",
       stageRetrieval: "证据检索",
-      stageClaimRetrieval: "Claim 级证据检索",
       stageExtraction: "Claim 抽取",
       stageVerification: "Claim 核验",
       stageCorrection: "校正",
@@ -550,17 +537,6 @@
       correctionUnsupportedPortion: "不被支持的部分",
       correctionCorrectedWording: "校正后表述",
       correctionNoSubClause: "后端未提供该 claim 的子句级验证结果。",
-      correctionSubclauses: "子句级核验",
-      correctionReasonCode: "原因代码",
-      reasonCode_evidence_supports_claim: "证据支持该表述",
-      reasonCode_mixed_clause_support: "部分子句获得支持，其余未获支持",
-      reasonCode_exact_value_not_verified: "具体数值未获核实",
-      reasonCode_insufficient_topic_coverage: "检索到的证据未覆盖该主题",
-      reasonCode_query_not_understood: "无法将该问题映射到知识库词表",
-      reasonCode_no_relevant_evidence: "已检索到相关证据，但不支持该表述",
-      reasonCode_evidence_contradicts_claim: "证据与该表述相矛盾",
-      reasonCode_evidence_sources_conflict: "不同来源之间存在冲突",
-      reasonCode_retrieval_unavailable: "该 claim 的检索不可用",
       correctionNothingVerified: "该表述没有任何部分能被 Anchor 现有证据核验。",
       correctionConflictingResult: "Anchor 证据与该表述冲突；详见下方原因与冲突证据。",
       correctionNumbersNotVerified: "Anchor 现有证据无法核验其中的具体数值。",
@@ -1131,18 +1107,33 @@
       refs.rawModel.textContent = raw.model || "-";
       refs.rawVerification.textContent = verificationStatusLabel(raw.verificationStatus || "uncorrected");
       refs.copyRawButton.disabled = !(vm || state.rawAnswer);
-      // No markers, no flagged list. This panel exists to show what the model
-      // said before Anchor touched it; annotating it with verification results
-      // destroys the comparison it is here to provide. Where a claim failed is
-      // the corrected panel's job, and every correction -- including the ones
-      // that could not be located in the text -- is listed under Corrections.
-      renderMarkdown(refs.rawText, raw.text || t("noRawAnswer"), {
-        markers: [],
+      const markers = vm ? rawMarkers(vm) : [];
+      const matched = renderMarkdown(refs.rawText, raw.text || t("noRawAnswer"), {
+        markers,
+        onClaim: focusByClaimOnly,
         citations: vm ? vm.citations : [],
         onCitation: focusCitation,
       });
+      renderFlaggedClaims(vm, matched);
     }
 
+    function renderFlaggedClaims(vm, matched) {
+      replaceChildren(refs.flaggedClaims);
+      if (!vm) return;
+      const flagged = vm.claims.filter(isFlaggedClaim);
+      const unmatched = flagged.filter((claim) => !matched.has(claim.id));
+      if (!unmatched.length) return;
+      refs.flaggedClaims.appendChild(create("h3", { className: "aw-mini-heading", text: t("flaggedClaims") }));
+      unmatched.forEach((claim) => {
+        const button = create("button", {
+          className: `aw-flagged-claim aw-status-${safeClass(claim.verificationStatus)}`,
+          type: "button",
+          text: `${claimLabel(claim.id)} | ${verificationStatusLabel(claim.verificationStatus)}: ${claim.text}`,
+        });
+        button.addEventListener("click", () => focusByClaimOnly(claim.id));
+        refs.flaggedClaims.appendChild(button);
+      });
+    }
 
     function renderCorrectedPanel() {
       const vm = state.viewModel;
@@ -1159,84 +1150,15 @@
         button.classList.toggle("active", active);
         button.setAttribute("aria-pressed", active ? "true" : "false");
       });
-      const segments = vm && Array.isArray(vm.annotatedAnswer) ? vm.annotatedAnswer : [];
-      if (segments.length) {
-        // The Raw Answer is the document. Only what evidence disagreed with is
-        // marked; a sentence that held up is printed exactly as the model wrote
-        // it. Rebuilding the answer out of verified claims handed the reader
-        // something they had never seen, which is what this replaces.
-        renderAnnotatedAnswer(refs.correctedText, segments, state.correctedMode === "tracked");
-      } else {
-        const text = vm ? vm.correctedAnswer.text : t("correctedPending");
-        const markers = vm && state.correctedMode === "tracked" ? correctedMarkers(vm) : [];
-        renderMarkdown(refs.correctedText, text, {
-          markers,
-          onClaim: focusByClaimOnly,
-          citations: vm ? vm.citations : [],
-          onCitation: focusCitation,
-        });
-      }
-      renderCorrectedReferences(vm);
-    }
-
-    // clean   -- the answer as it should now read: corrections applied in place.
-    // tracked  -- what changed: the original struck through above its replacement.
-    // Either way an untouched sentence is untouched, with no colour on it. Colour
-    // only means something while it is rare.
-    // clean   -- the answer as it should now read. Prose only: the corrected
-    //            wording already carries its own caveat ("Anchor evidence
-    //            conflicts on this; do not treat it as settled: ..."), so the
-    //            rules, badges and notes add nothing a reader of the sentence
-    //            does not already have. A "clean" view that keeps the apparatus
-    //            is just the tracked view with one thing missing.
-    // tracked -- the full trail: what was struck, what replaced it, which
-    //            verdict produced it, where the KB had nothing, and the notes.
-    function renderAnnotatedAnswer(container, segments, tracked) {
-      replaceChildren(container);
-      segments.forEach((segment) => {
-        if (!tracked) {
-          container.appendChild(create("p", {
-            className: "aw-seg aw-seg--plain",
-            text: segment.correctedText || segment.text,
-          }));
-          return;
-        }
-
-        // A sentence the KB had nothing on is marked; one where evidence was
-        // found and did not settle it is not. Both end as "not verifiable" and
-        // only the first is a gap the reader can act on.
-        const flavour = segment.severity
-          || (segment.unverifiableReason === "no_evidence" ? "no-evidence" : "");
-        const line = create("p", {
-          className: `aw-seg aw-seg--${segment.status}${flavour ? ` aw-seg--${flavour}` : ""}`,
-        });
-        if (segment.status === "unverifiable" && segment.unverifiableReason === "no_evidence") {
-          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
-          line.appendChild(create("small", {
-            className: "aw-seg__gap", text: t("noEvidenceInKb"),
-          }));
-          container.appendChild(line);
-          return;
-        }
-
-        if (segment.status === "corrected" && segment.correctedText) {
-          const wasClass = segment.severity === "severe" ? "aw-seg__was" : "aw-seg__text";
-          line.appendChild(create("span", { className: wasClass, text: segment.text }));
-          const fix = create("span", { className: "aw-seg__fix", text: segment.correctedText });
-          if (segment.verificationStatus) {
-            fix.dataset.verdict = t(`verification.${segment.verificationStatus}`)
-              || segment.verificationStatus;
-          }
-          line.appendChild(fix);
-        } else {
-          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
-        }
-
-        if (segment.riskNote) {
-          line.appendChild(create("small", { className: "aw-seg__note", text: segment.riskNote }));
-        }
-        container.appendChild(line);
+      const text = vm ? vm.correctedAnswer.text : t("correctedPending");
+      const markers = vm && state.correctedMode === "tracked" ? correctedMarkers(vm) : [];
+      renderMarkdown(refs.correctedText, text, {
+        markers,
+        onClaim: focusByClaimOnly,
+        citations: vm ? vm.citations : [],
+        onCitation: focusCitation,
       });
+      renderCorrectedReferences(vm);
     }
 
     function renderCorrectedReferences(vm) {
@@ -1397,11 +1319,6 @@
         push(t("correctionSupportedPortion"), t("correctionNoSubClause"), "aw-row-note");
       }
       push(t("correctionWhy"), correction.reason);
-      // The machine-readable code behind the status, shown alongside the prose so the
-      // reader can see the two agree.
-      if (correction.reasonCode) {
-        push(t("correctionReasonCode"), reasonCodeLabel(correction.reasonCode), "aw-row-note");
-      }
       push(t("correctionEvidence"), correction.supportingEvidenceIds.join(", "));
       if (correction.citationIds.length) {
         push(t("correctionCitations"), correction.citationIds.join(", "));
@@ -1411,53 +1328,6 @@
       push(t("correctionCorrectedWording"), correction.correctedClaim);
       push(t("correctionStatus"), verificationStatusLabel(correction.verificationStatus));
       details.append(...rows);
-      // Clause-level results, when the backend verified the claim clause by clause.
-      // Shown after the rows so a reader who wants to know why a portion was called
-      // supported can see which fact was checked and against which evidence.
-      if (correction.subclaims && correction.subclaims.length) {
-        details.appendChild(subclaimList(correction.subclaims));
-      }
-    }
-
-    /* Each subclaim is a fact the backend checked on its own, with its own status and
-       its own evidence ids. Rendered read-only: the frontend does not re-derive a
-       status, combine them, or infer anything the backend did not return. */
-    function subclaimList(subclaims) {
-      const wrapper = create("div", { className: "aw-subclaims" });
-      wrapper.appendChild(
-        create("div", { className: "aw-subclaims-title", text: t("correctionSubclauses") })
-      );
-      const list = create("ul", { className: "aw-subclaim-list" });
-      subclaims.forEach((subclaim) => {
-        const item = create("li", { className: "aw-subclaim" });
-        item.appendChild(
-          create("span", {
-            className: `aw-status-chip aw-status-${safeClass(subclaim.verificationStatus)}`,
-            text: verificationStatusLabel(subclaim.verificationStatus),
-          })
-        );
-        item.appendChild(create("span", { className: "aw-subclaim-text", text: subclaim.text }));
-        const evidenceIds = subclaim.supportingEvidenceIds.concat(subclaim.conflictingEvidenceIds);
-        if (evidenceIds.length) {
-          item.appendChild(
-            create("span", {
-              className: "aw-subclaim-evidence",
-              text: evidenceIds.join(", "),
-            })
-          );
-        }
-        list.appendChild(item);
-      });
-      wrapper.appendChild(list);
-      return wrapper;
-    }
-
-    /* Reason codes come from one backend definition. Unknown codes are shown as-is
-       rather than dropped: a code the UI has no wording for is still information. */
-    function reasonCodeLabel(code) {
-      const key = `reasonCode_${String(code)}`;
-      const label = t(key);
-      return label === key ? String(code) : label;
     }
 
     /* What the evidence actually established, stated from the status. Never the claim
@@ -1898,6 +1768,7 @@
       rawModel: required(root, "#aw-raw-model"),
       rawVerification: required(root, "#aw-raw-verification"),
       rawText: required(root, "#aw-raw-text"),
+      flaggedClaims: required(root, "#aw-flagged-claims"),
       copyRawButton: required(root, "#aw-copy-raw"),
       correctedEvidence: required(root, "#aw-corrected-evidence"),
       correctedConfidence: required(root, "#aw-corrected-confidence"),
@@ -2122,8 +1993,27 @@
      the claim at all, and "partially_supported" means it IS supported with
      caveats - neither is a finding about the raw answer, and marking them made
      Anchor look like it had condemned claims it never evaluated. */
+  const FLAGGED_STATUSES = new Set(["unsupported", "conflicting"]);
 
+  function isFlaggedClaim(claim) {
+    return FLAGGED_STATUSES.has(String(claim.verificationStatus || "").toLowerCase());
+  }
 
+  function rawMarkers(vm) {
+    const correctionByClaim = new Map(vm.corrections.map((correction) => [correction.claimId, correction]));
+    return vm.claims
+      .filter(isFlaggedClaim)
+      .map((claim) => {
+        const correction = correctionByClaim.get(claim.id);
+        return {
+          id: claim.id,
+          needle: claim.text,
+          status: claim.verificationStatus,
+          category: correction ? correction.category : "other",
+          reason: correction ? correction.reason : "",
+        };
+      });
+  }
 
   function correctedMarkers(vm) {
     return vm.corrections
@@ -2283,7 +2173,6 @@
     const key = phase && phase.key;
     if (key === "raw_generation") return t("stageRaw");
     if (key === "retrieval") return t("stageRetrieval");
-    if (key === "claim_retrieval") return t("stageClaimRetrieval");
     if (key === "claim_extraction") return t("stageExtraction");
     if (key === "verification") return t("stageVerification");
     if (key === "correction") return t("stageCorrection");

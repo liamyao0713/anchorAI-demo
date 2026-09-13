@@ -53,7 +53,7 @@
       settings: "Settings",
       export: "Export",
       exportMarkdown: "Export Markdown report",
-      exportJson: "Download audit JSON",
+      exportJson: "Export audit JSON",
       copyKeyCorrections: "Copy key corrections",
       copyQueryId: "Copy query ID",
       copyRunDetails: "Copy run details",
@@ -93,8 +93,8 @@
       kbGrounded: "KB-grounded",
       confidenceLower: "confidence",
       correctedModeAria: "Corrected answer display mode",
-      clean: "Clean answer",
-      tracked: "Show changes",
+      clean: "Clean",
+      tracked: "Tracked",
       downloadAuditJson: "Download audit JSON",
       auditTabsAria: "Audit tabs",
       corrections: "Corrections",
@@ -162,21 +162,6 @@
       "framework_status.failed": "Failed",
       "framework_status.not_evaluated": "Not evaluated",
       keyMeta: "{severity} severity | {claimId}",
-      markerRetained: "retained",
-      markerQualified: "qualified",
-      markerRemoved: "not supported",
-      markerConflicting: "conflicting",
-      markerNotVerifiable: "not verifiable",
-      markerOther: "changed",
-      openInCitations: "Open in Citations",
-      claimsTotal: "{count} claims",
-      clearFilter: "Clear filter",
-      noSupportingCitation: "No supporting citation was found for this claim.",
-      previousClaim: "Previous claim",
-      nextClaim: "Next claim",
-      claimPosition: "Claim {index} of {total}",
-      noClaimSelected: "No claim selected",
-      claimNavAria: "Claim navigation",
       citationIncompleteIssue: "Citation metadata is incomplete in the API response.",
       boolTrue: "true",
       boolFalse: "false",
@@ -205,8 +190,8 @@
       noRunDetails: "Run details will appear after a response is returned.",
       noRawAnswer: "Raw answer has not been generated.",
       correctedPending: "Anchor-corrected answer will appear after the run finishes.",
-      noEvidenceInKb: "Anchor KB holds no evidence on this",
       noTextReturned: "No text returned.",
+      flaggedClaims: "Flagged claims",
       correctedReferences: "Corrected-version references ({count})",
       noAnchorCitations: "No Anchor citations returned.",
       noExternalLink: "No external link",
@@ -240,7 +225,6 @@
       materialCorrectionFallback: "No material correction was required.",
       stageRaw: "Raw answer",
       stageRetrieval: "Evidence search",
-      stageClaimRetrieval: "Per-claim evidence search",
       stageExtraction: "Claim extraction",
       stageVerification: "Claim check",
       stageCorrection: "Correction",
@@ -265,29 +249,9 @@
       statSupported: "Supported",
       statCorrected: "Corrected",
       statUnsupported: "Unsupported",
-      correctionModelSaid: "Original claim",
-      correctionVerified: "Verification result",
-      correctionWhy: "Reason",
-      correctionSupportedPortion: "Supported portion",
-      correctionUnsupportedPortion: "Unsupported portion",
-      correctionCorrectedWording: "Corrected wording",
-      correctionNoSubClause: "The backend did not return sub-clause verification for this claim.",
-      correctionSubclauses: "Clause-level verification",
-      correctionReasonCode: "Reason code",
-      reasonCode_evidence_supports_claim: "Evidence supports the claim",
-      reasonCode_mixed_clause_support: "Some clauses are supported, others are not",
-      reasonCode_exact_value_not_verified: "The exact figures were not verified",
-      reasonCode_insufficient_topic_coverage: "Retrieved evidence does not cover this topic",
-      reasonCode_query_not_understood: "The query could not be mapped to the knowledge base",
-      reasonCode_no_relevant_evidence: "Relevant evidence was found and does not support this",
-      reasonCode_evidence_contradicts_claim: "Evidence contradicts the claim",
-      reasonCode_evidence_sources_conflict: "Sources disagree with each other",
-      reasonCode_retrieval_unavailable: "Retrieval was unavailable for this claim",
-      correctionNothingVerified: "No part of this claim could be verified from the available Anchor evidence.",
-      correctionConflictingResult: "Anchor evidence conflicts with this claim; see Reason and the conflicting evidence below.",
-      correctionNumbersNotVerified: "The exact numerical values could not be verified from the available Anchor evidence.",
-      correctionPartialNumbers: "The available evidence supports the qualitative conclusion, but does not verify the exact effect sizes or p-value stated by the model.",
-      correctionPartialGeneric: "The available evidence supports part of this claim. Anchor did not receive a sub-clause breakdown, so the supported part is not nominated here.",
+      correctionModelSaid: "Model said",
+      correctionVerified: "Verified",
+      correctionWhy: "Why",
       correctionEvidence: "Supporting evidence",
       correctionCitations: "Citation links",
       correctionStatus: "Verification status",
@@ -331,7 +295,7 @@
       settings: "设置",
       export: "导出",
       exportMarkdown: "导出 Markdown 报告",
-      exportJson: "下载审计 JSON",
+      exportJson: "导出审计 JSON",
       copyKeyCorrections: "复制关键校正",
       copyQueryId: "复制 Query ID",
       copyRunDetails: "复制运行详情",
@@ -371,8 +335,8 @@
       kbGrounded: "KB 接地",
       confidenceLower: "置信度",
       correctedModeAria: "校正回答显示模式",
-      clean: "干净版本",
-      tracked: "显示修改",
+      clean: "净版",
+      tracked: "追踪",
       downloadAuditJson: "下载审计 JSON",
       auditTabsAria: "审计标签",
       corrections: "校正",
@@ -440,21 +404,6 @@
       "framework_status.failed": "失败",
       "framework_status.not_evaluated": "未评估",
       keyMeta: "{severity}严重程度 | {claimId}",
-      markerRetained: "保留",
-      markerQualified: "已弱化",
-      markerRemoved: "不被支持",
-      markerConflicting: "证据冲突",
-      markerNotVerifiable: "无法核验",
-      markerOther: "已修改",
-      openInCitations: "在 Citations 中打开",
-      claimsTotal: "共 {count} 条 claim",
-      clearFilter: "清除筛选",
-      noSupportingCitation: "该 claim 没有找到支持它的 citation。",
-      previousClaim: "上一条 claim",
-      nextClaim: "下一条 claim",
-      claimPosition: "第 {index} 条 / 共 {total} 条",
-      noClaimSelected: "未选中 claim",
-      claimNavAria: "Claim 导航",
       citationIncompleteIssue: "API 响应中的 citation 元数据不完整。",
       boolTrue: "是",
       boolFalse: "否",
@@ -483,8 +432,8 @@
       noRunDetails: "响应返回后会显示运行详情。",
       noRawAnswer: "尚未生成原始回答。",
       correctedPending: "运行完成后会显示 Anchor 校正回答。",
-      noEvidenceInKb: "Anchor 知识库中没有相关证据",
       noTextReturned: "未返回文本。",
+      flaggedClaims: "标记的 claims",
       correctedReferences: "校正版参考文献（{count}）",
       noAnchorCitations: "未返回 Anchor citation。",
       noExternalLink: "无外部链接",
@@ -518,7 +467,6 @@
       materialCorrectionFallback: "无需实质性校正。",
       stageRaw: "原始回答",
       stageRetrieval: "证据检索",
-      stageClaimRetrieval: "Claim 级证据检索",
       stageExtraction: "Claim 抽取",
       stageVerification: "Claim 核验",
       stageCorrection: "校正",
@@ -543,29 +491,9 @@
       statSupported: "已支持",
       statCorrected: "已校正",
       statUnsupported: "不支持",
-      correctionModelSaid: "原始 claim",
-      correctionVerified: "核验结论",
-      correctionWhy: "原因",
-      correctionSupportedPortion: "被支持的部分",
-      correctionUnsupportedPortion: "不被支持的部分",
-      correctionCorrectedWording: "校正后表述",
-      correctionNoSubClause: "后端未提供该 claim 的子句级验证结果。",
-      correctionSubclauses: "子句级核验",
-      correctionReasonCode: "原因代码",
-      reasonCode_evidence_supports_claim: "证据支持该表述",
-      reasonCode_mixed_clause_support: "部分子句获得支持，其余未获支持",
-      reasonCode_exact_value_not_verified: "具体数值未获核实",
-      reasonCode_insufficient_topic_coverage: "检索到的证据未覆盖该主题",
-      reasonCode_query_not_understood: "无法将该问题映射到知识库词表",
-      reasonCode_no_relevant_evidence: "已检索到相关证据，但不支持该表述",
-      reasonCode_evidence_contradicts_claim: "证据与该表述相矛盾",
-      reasonCode_evidence_sources_conflict: "不同来源之间存在冲突",
-      reasonCode_retrieval_unavailable: "该 claim 的检索不可用",
-      correctionNothingVerified: "该表述没有任何部分能被 Anchor 现有证据核验。",
-      correctionConflictingResult: "Anchor 证据与该表述冲突；详见下方原因与冲突证据。",
-      correctionNumbersNotVerified: "Anchor 现有证据无法核验其中的具体数值。",
-      correctionPartialNumbers: "现有证据支持其定性结论，但不能核验模型给出的具体效应量或 P 值。",
-      correctionPartialGeneric: "现有证据支持该表述的一部分。后端未返回子句级拆分，因此此处不指认具体是哪一部分。",
+      correctionModelSaid: "模型原话",
+      correctionVerified: "核验后表达",
+      correctionWhy: "校正原因",
       correctionEvidence: "支持证据",
       correctionCitations: "Citation 链接",
       correctionStatus: "核验状态",
@@ -707,21 +635,6 @@
 
       refs.expandAllCorrections.addEventListener("click", () => setCorrectionCardsOpen(true));
       refs.collapseAllCorrections.addEventListener("click", () => setCorrectionCardsOpen(false));
-      refs.prevClaimButton.addEventListener("click", () => stepClaim(-1));
-      refs.nextClaimButton.addEventListener("click", () => stepClaim(1));
-
-      // Keyboard walking of the claim list. Alt is required so the shortcut cannot
-      // steal plain arrow keys from the textarea, the selects or the scroll panels.
-      root.addEventListener("keydown", (event) => {
-        if (!event.altKey || event.ctrlKey || event.metaKey) return;
-        if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-          event.preventDefault();
-          stepClaim(-1);
-        } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-          event.preventDefault();
-          stepClaim(1);
-        }
-      });
       refs.correctionCategoryFilter.addEventListener("change", () => {
         correctionCategory = refs.correctionCategoryFilter.value;
         renderCorrectionsTab();
@@ -975,9 +888,6 @@
       renderCorrectedPanel();
       renderAuditTabs();
       renderResponsivePanels();
-      // Re-apply after every render: the panels rebuild their nodes, so the selected
-      // claim would otherwise lose its marking and the position readout would go stale.
-      applyClaimSelection();
     }
 
     function renderConnection() {
@@ -1115,7 +1025,7 @@
         button.append(
           create("span", { className: "aw-key-type", text: categoryLabel(item.category) }),
           create("span", { className: "aw-key-summary", text: item.summary }),
-          create("span", { className: "aw-key-meta", text: t("keyMeta", { severity: severityLabel(item.severity), claimId: claimLabel(item.claimId) }) }),
+          create("span", { className: "aw-key-meta", text: t("keyMeta", { severity: severityLabel(item.severity), claimId: item.claimId || "-" }) }),
         );
         button.addEventListener("click", () => focusCorrection(item.id, item.claimId));
         list.appendChild(button);
@@ -1131,112 +1041,53 @@
       refs.rawModel.textContent = raw.model || "-";
       refs.rawVerification.textContent = verificationStatusLabel(raw.verificationStatus || "uncorrected");
       refs.copyRawButton.disabled = !(vm || state.rawAnswer);
-      // No markers, no flagged list. This panel exists to show what the model
-      // said before Anchor touched it; annotating it with verification results
-      // destroys the comparison it is here to provide. Where a claim failed is
-      // the corrected panel's job, and every correction -- including the ones
-      // that could not be located in the text -- is listed under Corrections.
-      renderMarkdown(refs.rawText, raw.text || t("noRawAnswer"), {
-        markers: [],
+      const markers = vm ? rawMarkers(vm) : [];
+      const matched = renderMarkdown(refs.rawText, raw.text || t("noRawAnswer"), {
+        markers,
+        onClaim: focusByClaimOnly,
         citations: vm ? vm.citations : [],
         onCitation: focusCitation,
       });
+      renderFlaggedClaims(vm, matched);
     }
 
+    function renderFlaggedClaims(vm, matched) {
+      replaceChildren(refs.flaggedClaims);
+      if (!vm) return;
+      const flagged = vm.claims.filter(isFlaggedClaim);
+      const unmatched = flagged.filter((claim) => !matched.has(claim.id));
+      if (!unmatched.length) return;
+      refs.flaggedClaims.appendChild(create("h3", { className: "aw-mini-heading", text: t("flaggedClaims") }));
+      unmatched.forEach((claim) => {
+        const button = create("button", {
+          className: `aw-flagged-claim aw-status-${safeClass(claim.verificationStatus)}`,
+          type: "button",
+          text: `${claim.id} | ${verificationStatusLabel(claim.verificationStatus)}: ${claim.text}`,
+        });
+        button.addEventListener("click", () => focusByClaimOnly(claim.id));
+        refs.flaggedClaims.appendChild(button);
+      });
+    }
 
     function renderCorrectedPanel() {
       const vm = state.viewModel;
       refs.correctedEvidence.textContent = vm ? evidenceStatusLabel(vm.evidenceStatus) : "-";
-      // Section 3.4: confidence stays null until Anchor has a real calibration method,
-      // and a bare "confidence -" in the panel header reads like a missing value rather
-      // than a deliberate absence. Hide the field instead, and never invent one.
-      const hasConfidence = !!vm && vm.confidence !== null && vm.confidence !== undefined && vm.confidence !== "";
-      refs.confidenceWrap.hidden = !hasConfidence;
-      refs.correctedConfidence.textContent = hasConfidence ? String(vm.confidence) : "";
+      refs.correctedConfidence.textContent = vm && vm.confidence !== null ? String(vm.confidence) : "-";
       refs.copyCorrectedButton.disabled = !vm;
       refs.correctedModeButtons.forEach((button) => {
         const active = button.dataset.mode === state.correctedMode;
         button.classList.toggle("active", active);
         button.setAttribute("aria-pressed", active ? "true" : "false");
       });
-      const segments = vm && Array.isArray(vm.annotatedAnswer) ? vm.annotatedAnswer : [];
-      if (segments.length) {
-        // The Raw Answer is the document. Only what evidence disagreed with is
-        // marked; a sentence that held up is printed exactly as the model wrote
-        // it. Rebuilding the answer out of verified claims handed the reader
-        // something they had never seen, which is what this replaces.
-        renderAnnotatedAnswer(refs.correctedText, segments, state.correctedMode === "tracked");
-      } else {
-        const text = vm ? vm.correctedAnswer.text : t("correctedPending");
-        const markers = vm && state.correctedMode === "tracked" ? correctedMarkers(vm) : [];
-        renderMarkdown(refs.correctedText, text, {
-          markers,
-          onClaim: focusByClaimOnly,
-          citations: vm ? vm.citations : [],
-          onCitation: focusCitation,
-        });
-      }
-      renderCorrectedReferences(vm);
-    }
-
-    // clean   -- the answer as it should now read: corrections applied in place.
-    // tracked  -- what changed: the original struck through above its replacement.
-    // Either way an untouched sentence is untouched, with no colour on it. Colour
-    // only means something while it is rare.
-    // clean   -- the answer as it should now read. Prose only: the corrected
-    //            wording already carries its own caveat ("Anchor evidence
-    //            conflicts on this; do not treat it as settled: ..."), so the
-    //            rules, badges and notes add nothing a reader of the sentence
-    //            does not already have. A "clean" view that keeps the apparatus
-    //            is just the tracked view with one thing missing.
-    // tracked -- the full trail: what was struck, what replaced it, which
-    //            verdict produced it, where the KB had nothing, and the notes.
-    function renderAnnotatedAnswer(container, segments, tracked) {
-      replaceChildren(container);
-      segments.forEach((segment) => {
-        if (!tracked) {
-          container.appendChild(create("p", {
-            className: "aw-seg aw-seg--plain",
-            text: segment.correctedText || segment.text,
-          }));
-          return;
-        }
-
-        // A sentence the KB had nothing on is marked; one where evidence was
-        // found and did not settle it is not. Both end as "not verifiable" and
-        // only the first is a gap the reader can act on.
-        const flavour = segment.severity
-          || (segment.unverifiableReason === "no_evidence" ? "no-evidence" : "");
-        const line = create("p", {
-          className: `aw-seg aw-seg--${segment.status}${flavour ? ` aw-seg--${flavour}` : ""}`,
-        });
-        if (segment.status === "unverifiable" && segment.unverifiableReason === "no_evidence") {
-          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
-          line.appendChild(create("small", {
-            className: "aw-seg__gap", text: t("noEvidenceInKb"),
-          }));
-          container.appendChild(line);
-          return;
-        }
-
-        if (segment.status === "corrected" && segment.correctedText) {
-          const wasClass = segment.severity === "severe" ? "aw-seg__was" : "aw-seg__text";
-          line.appendChild(create("span", { className: wasClass, text: segment.text }));
-          const fix = create("span", { className: "aw-seg__fix", text: segment.correctedText });
-          if (segment.verificationStatus) {
-            fix.dataset.verdict = t(`verification.${segment.verificationStatus}`)
-              || segment.verificationStatus;
-          }
-          line.appendChild(fix);
-        } else {
-          line.appendChild(create("span", { className: "aw-seg__text", text: segment.text }));
-        }
-
-        if (segment.riskNote) {
-          line.appendChild(create("small", { className: "aw-seg__note", text: segment.riskNote }));
-        }
-        container.appendChild(line);
+      const text = vm ? vm.correctedAnswer.text : t("correctedPending");
+      const markers = vm && state.correctedMode === "tracked" ? correctedMarkers(vm) : [];
+      renderMarkdown(refs.correctedText, text, {
+        markers,
+        onClaim: focusByClaimOnly,
+        citations: vm ? vm.citations : [],
+        onCitation: focusCitation,
       });
+      renderCorrectedReferences(vm);
     }
 
     function renderCorrectedReferences(vm) {
@@ -1290,12 +1141,13 @@
         return;
       }
 
-      // Section 5: every count comes from the current claims, and each chip is a filter.
-      renderClaimSummaryBar(vm);
+      refs.correctionsSummary.append(
+        smallStat(t("statSupported"), vm.metrics.supportedClaims),
+        smallStat(t("statCorrected"), vm.metrics.correctedClaims),
+        smallStat(t("statUnsupported"), vm.metrics.unsupportedClaims),
+      );
 
-      const corrections = filteredCorrections(vm.corrections)
-        .slice()
-        .sort((a, b) => byClaimOrder(a.claimId, b.claimId));
+      const corrections = filteredCorrections(vm.corrections);
       if (!corrections.length) {
         refs.correctionsList.appendChild(emptyBlock(t("noCorrectionMatches")));
         return;
@@ -1312,166 +1164,25 @@
         summary.append(
           create("span", { className: "aw-category-chip", text: categoryLabel(correction.category) }),
           create("span", { className: `aw-severity-chip aw-severity-${correction.severity}`, text: severityLabel(correction.severity) }),
-          create("span", { className: "aw-correction-title", text: `${claimLabel(correction.claimId)} | ${verificationStatusLabel(correction.verificationStatus)}` }),
+          create("span", { className: "aw-correction-title", text: `${correction.claimId || "-"} | ${verificationStatusLabel(correction.verificationStatus)}` }),
         );
         details.appendChild(summary);
-        appendCorrectionFields(details, correction);
-        // Selection is driven by a real click, never by the toggle event: cards that
-        // render already open queue a toggle asynchronously, so keying off it made the
-        // last auto-opened card select itself on every render, which then dragged B's
-        // scroll position with it.
-        details.addEventListener("click", () => {
-          selectClaimFromAudit(correction.claimId, correction.id);
+        details.append(
+          correctionRow(t("correctionModelSaid"), correction.originalClaim),
+          correctionRow(t("correctionVerified"), correction.correctedClaim || correction.originalClaim || "-"),
+          correctionRow(t("correctionWhy"), correction.reason),
+          correctionRow(t("correctionEvidence"), correction.supportingEvidenceIds.join(", ") || "-"),
+          correctionRow(t("correctionCitations"), correction.citationIds.join(", ") || "-"),
+          correctionRow(t("correctionStatus"), verificationStatusLabel(correction.verificationStatus)),
+        );
+        details.addEventListener("toggle", () => {
+          if (details.open) highlightLinked(correction.claimId, correction.id);
+        });
+        details.addEventListener("click", (event) => {
+          if (event.target.tagName !== "SUMMARY") highlightLinked(correction.claimId, correction.id);
         });
         refs.correctionsList.appendChild(details);
       });
-    }
-
-    /* Section 3.1-3.3 of the UI audit. The old card put the backend's corrected_claim
-       under a heading reading "Verified", falling back to the original claim when it was
-       empty. For an unsupported claim the backend's text is
-       "Anchor evidence does not support this claim: <claim>", so every unverified number
-       in the claim was reprinted directly beneath the word "Verified".
-
-       Rows are now named for what they hold, empty ones are dropped instead of stacking
-       dashes, and the verification result is derived from the status rather than echoed. */
-    /* "15 claims · 7 supported · 3 partially supported · 3 unsupported · 2 not
-       verifiable", counted from the run rather than hardcoded, with each status acting
-       as a filter and a visible way back to all claims. */
-    function renderClaimSummaryBar(vm) {
-      const counts = { supported: 0, partially_supported: 0, unsupported: 0, conflicting: 0, not_verifiable: 0 };
-      vm.claims.forEach((claim) => {
-        const key = String(claim.verificationStatus || "").toLowerCase();
-        if (key in counts) counts[key] += 1;
-      });
-
-      const total = create("span", { className: "aw-summary-total", text: t("claimsTotal", { count: vm.claims.length }) });
-      refs.correctionsSummary.appendChild(total);
-
-      const chip = (statusKey, count) => {
-        const active = correctionStatus === statusKey;
-        const button = create("button", {
-          className: `aw-status-chip aw-status-${safeClass(statusKey)}${active ? " active" : ""}`,
-          type: "button",
-        });
-        button.setAttribute("aria-pressed", active ? "true" : "false");
-        button.append(
-          create("span", { className: "aw-chip-count", text: String(count) }),
-          create("span", { className: "aw-chip-label", text: verificationStatusLabel(statusKey) }),
-        );
-        button.addEventListener("click", () => {
-          correctionStatus = active ? "all" : statusKey;
-          renderAuditTabs();
-        });
-        return button;
-      };
-
-      Object.keys(counts).forEach((key) => {
-        if (!counts[key]) return;
-        refs.correctionsSummary.appendChild(chip(key, counts[key]));
-      });
-
-      if (correctionStatus !== "all") {
-        const clear = create("button", { className: "aw-chip-clear", type: "button", text: t("clearFilter") });
-        clear.addEventListener("click", () => {
-          correctionStatus = "all";
-          renderAuditTabs();
-        });
-        refs.correctionsSummary.appendChild(clear);
-      }
-    }
-
-    function appendCorrectionFields(details, correction) {
-      const status = String(correction.verificationStatus || "").toLowerCase();
-      const rows = [];
-      const push = (label, value, className) => {
-        if (value === null || value === undefined || value === "" || value === "-") return;
-        rows.push(correctionRow(label, value, className));
-      };
-
-      push(t("correctionModelSaid"), correction.originalClaim);
-      push(t("correctionVerified"), verificationResultText(correction, status), "aw-row-result");
-      push(t("correctionSupportedPortion"), correction.supportedPortion);
-      push(t("correctionUnsupportedPortion"), correction.unsupportedPortion, "aw-row-unsupported");
-      if (status === "partially_supported" && !correction.subClauseVerified) {
-        push(t("correctionSupportedPortion"), t("correctionNoSubClause"), "aw-row-note");
-      }
-      push(t("correctionWhy"), correction.reason);
-      // The machine-readable code behind the status, shown alongside the prose so the
-      // reader can see the two agree.
-      if (correction.reasonCode) {
-        push(t("correctionReasonCode"), reasonCodeLabel(correction.reasonCode), "aw-row-note");
-      }
-      push(t("correctionEvidence"), correction.supportingEvidenceIds.join(", "));
-      if (correction.citationIds.length) {
-        push(t("correctionCitations"), correction.citationIds.join(", "));
-      } else {
-        push(t("correctionCitations"), t("noSupportingCitation"), "aw-row-note");
-      }
-      push(t("correctionCorrectedWording"), correction.correctedClaim);
-      push(t("correctionStatus"), verificationStatusLabel(correction.verificationStatus));
-      details.append(...rows);
-      // Clause-level results, when the backend verified the claim clause by clause.
-      // Shown after the rows so a reader who wants to know why a portion was called
-      // supported can see which fact was checked and against which evidence.
-      if (correction.subclaims && correction.subclaims.length) {
-        details.appendChild(subclaimList(correction.subclaims));
-      }
-    }
-
-    /* Each subclaim is a fact the backend checked on its own, with its own status and
-       its own evidence ids. Rendered read-only: the frontend does not re-derive a
-       status, combine them, or infer anything the backend did not return. */
-    function subclaimList(subclaims) {
-      const wrapper = create("div", { className: "aw-subclaims" });
-      wrapper.appendChild(
-        create("div", { className: "aw-subclaims-title", text: t("correctionSubclauses") })
-      );
-      const list = create("ul", { className: "aw-subclaim-list" });
-      subclaims.forEach((subclaim) => {
-        const item = create("li", { className: "aw-subclaim" });
-        item.appendChild(
-          create("span", {
-            className: `aw-status-chip aw-status-${safeClass(subclaim.verificationStatus)}`,
-            text: verificationStatusLabel(subclaim.verificationStatus),
-          })
-        );
-        item.appendChild(create("span", { className: "aw-subclaim-text", text: subclaim.text }));
-        const evidenceIds = subclaim.supportingEvidenceIds.concat(subclaim.conflictingEvidenceIds);
-        if (evidenceIds.length) {
-          item.appendChild(
-            create("span", {
-              className: "aw-subclaim-evidence",
-              text: evidenceIds.join(", "),
-            })
-          );
-        }
-        list.appendChild(item);
-      });
-      wrapper.appendChild(list);
-      return wrapper;
-    }
-
-    /* Reason codes come from one backend definition. Unknown codes are shown as-is
-       rather than dropped: a code the UI has no wording for is still information. */
-    function reasonCodeLabel(code) {
-      const key = `reasonCode_${String(code)}`;
-      const label = t(key);
-      return label === key ? String(code) : label;
-    }
-
-    /* What the evidence actually established, stated from the status. Never the claim
-       text itself: repeating it here is what made unverified numbers look confirmed. */
-    function verificationResultText(correction, status) {
-      if (status === "supported") return correction.originalClaim;
-      if (status === "partially_supported") {
-        return correction.carriesNumerics ? t("correctionPartialNumbers") : t("correctionPartialGeneric");
-      }
-      // The backend's reason often quotes the very figures it is denying. That belongs in
-      // the Reason row; the result row must stay a statement about verification, so no
-      // unverified number can be read off a line labelled as a result.
-      if (status === "conflicting") return t("correctionConflictingResult");
-      return correction.carriesNumerics ? t("correctionNumbersNotVerified") : t("correctionNothingVerified");
     }
 
     function renderCitationsTab() {
@@ -1616,7 +1327,7 @@
       if (kind === "runDetails") return copyValue(vm ? JSON.stringify(Exporter.buildAuditJson(vm).run_details, null, 2) : "", t("runDetailsCopied"));
       if (kind === "keyCorrections") {
         const text = vm && vm.keyCorrections.length
-          ? vm.keyCorrections.map((item) => `${item.category} (${item.severity}): ${item.summary} [${claimLabel(item.claimId)}]`).join("\n")
+          ? vm.keyCorrections.map((item) => `${item.category} (${item.severity}): ${item.summary} [${item.claimId || "-"}]`).join("\n")
           : t("materialCorrectionFallback");
         return copyValue(text, t("keyCorrectionsCopied"));
       }
@@ -1663,62 +1374,6 @@
       showToast(t("auditJsonExported"));
     }
 
-
-    /* Section 3.6. selectedClaimId was already stored by the state machine but nothing
-       ever read it, so selecting a claim left no visible trace in any panel. One
-       selection now drives A, B and C together, and Previous/Next walk the same order
-       the corrections list is sorted in. */
-    function navigableClaims() {
-      const vm = state.viewModel;
-      if (!vm) return [];
-      return vm.claims.slice().sort((a, b) => byClaimOrder(a.id, b.id));
-    }
-
-    function applyClaimSelection() {
-      const claimId = state.selectedClaimId;
-      root.querySelectorAll(".aw-is-selected").forEach((node) => node.classList.remove("aw-is-selected"));
-      root.querySelectorAll("[data-claim-id]").forEach((node) => {
-        node.setAttribute("aria-current", "false");
-      });
-      if (claimId) {
-        root.querySelectorAll(`[data-claim-id="${cssEscape(claimId)}"]`).forEach((node) => {
-          node.classList.add("aw-is-selected");
-          node.setAttribute("aria-current", "true");
-        });
-      }
-      renderClaimPosition();
-    }
-
-    function renderClaimPosition() {
-      const claims = navigableClaims();
-      const index = claims.findIndex((claim) => claim.id === state.selectedClaimId);
-      // With nothing selected yet, Next must still be able to enter the list at claim 1.
-      refs.prevClaimButton.disabled = claims.length === 0 || index <= 0;
-      refs.nextClaimButton.disabled = claims.length === 0 || index >= claims.length - 1;
-      refs.claimPosition.textContent = index < 0
-        ? (claims.length ? t("noClaimSelected") : "-")
-        : t("claimPosition", { index: index + 1, total: claims.length });
-    }
-
-    function stepClaim(delta) {
-      const claims = navigableClaims();
-      if (!claims.length) return;
-      const index = claims.findIndex((claim) => claim.id === state.selectedClaimId);
-      const nextIndex = index < 0 ? (delta > 0 ? 0 : claims.length - 1) : index + delta;
-      if (nextIndex < 0 || nextIndex >= claims.length) return;
-      focusByClaimOnly(claims[nextIndex].id);
-    }
-
-    /* The corrected answer marks the same claim ids, so scrolling B is the same lookup. */
-    function revealInCorrectedPanel(claimId) {
-      if (!claimId) return;
-      const marker = refs.correctedText.querySelector(`[data-claim-id="${cssEscape(claimId)}"]`);
-      if (!marker) return;
-      marker.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
-      marker.classList.add("aw-focus-pulse");
-      window.setTimeout(() => marker.classList.remove("aw-focus-pulse"), 1200);
-    }
-
     function focusCorrection(correctionId, claimId) {
       state = State.setActivePanel(state, "audit");
       state = State.setAuditTab(state, "corrections");
@@ -1736,17 +1391,6 @@
         window.setTimeout(() => card.classList.remove("aw-focus-pulse"), 1200);
       }
       highlightLinked(claimId, correctionId);
-      applyClaimSelection();
-      revealInCorrectedPanel(claimId);
-    }
-
-    /* Selection coming from the C panel. It must not re-scroll C to itself, which is
-       what makes the page jump when a reader is already reading the card. */
-    function selectClaimFromAudit(claimId, correctionId) {
-      state = State.selectClaim(state, claimId || null);
-      highlightLinked(claimId, correctionId);
-      applyClaimSelection();
-      revealInCorrectedPanel(claimId);
     }
 
     function focusByClaimOnly(claimId) {
@@ -1898,13 +1542,10 @@
       rawModel: required(root, "#aw-raw-model"),
       rawVerification: required(root, "#aw-raw-verification"),
       rawText: required(root, "#aw-raw-text"),
+      flaggedClaims: required(root, "#aw-flagged-claims"),
       copyRawButton: required(root, "#aw-copy-raw"),
       correctedEvidence: required(root, "#aw-corrected-evidence"),
       correctedConfidence: required(root, "#aw-corrected-confidence"),
-      confidenceWrap: required(root, "#aw-confidence-wrap"),
-      prevClaimButton: required(root, "#aw-prev-claim"),
-      nextClaimButton: required(root, "#aw-next-claim"),
-      claimPosition: required(root, "#aw-claim-position"),
       correctedText: required(root, "#aw-corrected-text"),
       correctedReferences: required(root, "#aw-corrected-references"),
       correctedModeButtons: Array.from(root.querySelectorAll(".aw-mode-button")),
@@ -2012,21 +1653,13 @@
       }
       if (next.index > cursor) appendBoldText(parent, source.slice(cursor, next.index));
       if (next.type === "marker") {
-        // Section 3.7 and section 7: a marked span must not rely on colour alone, so it
-        // carries a glyph and a spoken label as well as its status class.
-        const affix = markerAffix(next.marker.status);
         const button = create("button", {
           className: `aw-claim-marker aw-status-${safeClass(next.marker.status)}`,
           type: "button",
-          title: `${claimLabel(next.marker.id)} | ${affix.label} | ${next.marker.category || "other"} | ${next.marker.reason || ""}`,
+          text: next.text,
+          title: `${next.marker.id} | ${next.marker.status} | ${next.marker.category || "other"} | ${next.marker.reason || ""}`,
           dataClaimId: next.marker.id,
         });
-        button.setAttribute("aria-label", `${affix.label}: ${next.text}`);
-        button.append(
-          create("span", { className: "aw-marker-glyph", text: affix.glyph, ariaHidden: "true" }),
-          create("span", { className: "aw-marker-text", text: next.text }),
-          create("span", { className: "aw-marker-tag", text: affix.label }),
-        );
         button.addEventListener("click", () => options.onClaim(next.marker.id));
         parent.appendChild(button);
         matched.add(next.marker.id);
@@ -2034,11 +1667,10 @@
         const button = create("button", {
           className: "aw-citation-marker",
           type: "button",
-          text: next.ordinal ? `[${next.ordinal}]` : next.text,
+          text: next.text,
           dataCitationId: next.citationId,
-          title: `${next.citationId} - ${t("openInCitations")}`,
+          title: `Open ${next.citationId} in citations`,
         });
-        button.setAttribute("aria-label", `${t("openInCitations")}: ${next.citationId}`);
         button.addEventListener("click", () => options.onCitation(next.citationId));
         parent.appendChild(button);
       }
@@ -2055,9 +1687,7 @@
       const trailingNumber = citationId.match(/(\d+)$/);
       if (trailingNumber) candidates.add(`[${trailingNumber[1]}]`);
       candidates.add(`[${index + 1}]`);
-      // The ordinal is what the reader sees. The backend writes [citation-1] inline,
-      // which is long and noisy; the marker keeps pointing at the same real citation.
-      candidates.forEach((label) => labels.push({ label, citationId, ordinal: index + 1 }));
+      candidates.forEach((label) => labels.push({ label, citationId }));
     });
     return labels.sort((a, b) => b.label.length - a.label.length);
   }
@@ -2077,7 +1707,7 @@
       const index = source.indexOf(candidate.label, cursor);
       if (index === -1) return;
       if (!best || index < best.index || (index === best.index && candidate.label.length > best.text.length)) {
-        best = { type: "citation", index, text: candidate.label, citationId: candidate.citationId, ordinal: candidate.ordinal };
+        best = { type: "citation", index, text: candidate.label, citationId: candidate.citationId };
       }
     });
     return best;
@@ -2122,8 +1752,27 @@
      the claim at all, and "partially_supported" means it IS supported with
      caveats - neither is a finding about the raw answer, and marking them made
      Anchor look like it had condemned claims it never evaluated. */
+  const FLAGGED_STATUSES = new Set(["unsupported", "conflicting"]);
 
+  function isFlaggedClaim(claim) {
+    return FLAGGED_STATUSES.has(String(claim.verificationStatus || "").toLowerCase());
+  }
 
+  function rawMarkers(vm) {
+    const correctionByClaim = new Map(vm.corrections.map((correction) => [correction.claimId, correction]));
+    return vm.claims
+      .filter(isFlaggedClaim)
+      .map((claim) => {
+        const correction = correctionByClaim.get(claim.id);
+        return {
+          id: claim.id,
+          needle: claim.text,
+          status: claim.verificationStatus,
+          category: correction ? correction.category : "other",
+          reason: correction ? correction.reason : "",
+        };
+      });
+  }
 
   function correctedMarkers(vm) {
     return vm.corrections
@@ -2158,43 +1807,9 @@
     return item;
   }
 
-  /* Section 3.5. Internally a claim keeps the backend's id ("claim_6"); the reader sees
-     "Claim 6". Sorting is numeric so claim_10 does not land before claim_2. */
-  function claimLabel(claimId) {
-    const raw = String(claimId || "").trim();
-    if (!raw || raw === "-") return "-";
-    const match = raw.match(/^claim[_\s-]*(\d+)$/i);
-    return match ? `Claim ${Number(match[1])}` : raw;
-  }
-
-  function claimOrdinal(claimId) {
-    const match = String(claimId || "").match(/(\d+)/);
-    return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-  }
-
-  function byClaimOrder(a, b) {
-    const diff = claimOrdinal(a) - claimOrdinal(b);
-    return diff !== 0 ? diff : String(a).localeCompare(String(b));
-  }
-
-  /* Glyph plus words for each verdict, so a marked span reads the same to someone who
-     cannot separate the red from the green. */
-  const MARKER_AFFIX = {
-    supported: { glyph: "\u2713", key: "markerRetained" },
-    partially_supported: { glyph: "\u2248", key: "markerQualified" },
-    unsupported: { glyph: "\u2715", key: "markerRemoved" },
-    conflicting: { glyph: "\u26A0", key: "markerConflicting" },
-    not_verifiable: { glyph: "?", key: "markerNotVerifiable" },
-  };
-
-  function markerAffix(status) {
-    const entry = MARKER_AFFIX[String(status || "").toLowerCase()] || { glyph: "\u2022", key: "markerOther" };
-    return { glyph: entry.glyph, label: t(entry.key) };
-  }
-
-  function correctionRow(label, value, className) {
-    const row = create("div", { className: `aw-correction-row${className ? " " + className : ""}` });
-    row.append(create("span", { text: label }), create("p", { text: value }));
+  function correctionRow(label, value) {
+    const row = create("div", { className: "aw-correction-row" });
+    row.append(create("span", { text: label }), create("p", { text: value || "-" }));
     return row;
   }
 
@@ -2283,7 +1898,6 @@
     const key = phase && phase.key;
     if (key === "raw_generation") return t("stageRaw");
     if (key === "retrieval") return t("stageRetrieval");
-    if (key === "claim_retrieval") return t("stageClaimRetrieval");
     if (key === "claim_extraction") return t("stageExtraction");
     if (key === "verification") return t("stageVerification");
     if (key === "correction") return t("stageCorrection");
