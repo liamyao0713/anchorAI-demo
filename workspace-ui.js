@@ -2287,6 +2287,14 @@
     return best;
   }
 
+  // Emphasis that lost its other half. The corrected panel renders the Raw
+  // Answer a sentence at a time, and a "**bold**" run whose closing marker sits
+  // after a full stop is split across two segments -- so one segment carries an
+  // opening "**" with nothing to close it. The pair-matching split below leaves
+  // those in the plain text, and they reached the screen as literal asterisks.
+  // There is no way to render half a bold run, so the marker comes off.
+  const ORPHAN_EMPHASIS_RE = /\*{2,}|__/g;
+
   function appendBoldText(parent, text) {
     const parts = String(text || "").split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
     parts.forEach((part) => {
@@ -2294,9 +2302,10 @@
       const bold = part.match(/^(?:\*\*([^*]+)\*\*|__([^_]+)__)$/);
       if (bold) {
         parent.appendChild(create("strong", { text: bold[1] || bold[2] }));
-      } else {
-        appendText(parent, part);
+        return;
       }
+      const plain = part.replace(ORPHAN_EMPHASIS_RE, "");
+      if (plain) appendText(parent, plain);
     });
   }
 
@@ -2450,11 +2459,27 @@
     return block;
   }
 
+  // The adapter already restricts citation URLs to http/https, so nothing reaches
+  // here unchecked today. But this is the sink, it is called "safe", and the only
+  // thing making that true lives a layer away -- a future caller reading the name
+  // would be entitled to pass it anything. A "javascript:" href set on an <a>
+  // runs on click; target and rel do not stop it.
   function safeLink(href, text) {
     const link = create("a", { text });
-    link.href = href;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
+    let url = null;
+    try {
+      const parsed = new URL(String(href || ""), window.location.href);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") url = parsed.href;
+    } catch (_error) {
+      url = null;
+    }
+    if (url) {
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    } else {
+      link.setAttribute("aria-disabled", "true");
+    }
     return link;
   }
 

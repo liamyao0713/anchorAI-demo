@@ -717,3 +717,25 @@ assert.match(workspaceUiJs, /function compactRuns\s*\(/,
   "short unchanged runs between two marks must be absorbed, not left as confetti");
 assert.match(workspaceUiJs, /MIN_UNCHANGED_RUN/,
   "the compaction threshold must be named, not inlined");
+
+// safeLink is the sink. The adapter restricts citation URLs to http/https and
+// nothing reaches it unchecked today, but the guarantee has to live at the sink
+// too -- a "javascript:" href runs on click, and target/rel do not stop it.
+const safeLinkBody = /function safeLink\([\s\S]*?\n  }/.exec(workspaceUiJs);
+assert.ok(safeLinkBody, "safeLink must exist");
+assert.match(safeLinkBody[0], /protocol === "http:" \|\| .*protocol === "https:"/,
+  "safeLink must enforce the scheme its name promises");
+assert.match(safeLinkBody[0], /rel = "noopener noreferrer"/,
+  "an external link must not hand the opener to the target");
+
+// A "**bold**" run whose closing marker sits after a full stop is split across
+// two segments, so one carries an opening "**" with nothing to close it. The
+// pair-matching split leaves those in the plain text and they reached the screen
+// as literal asterisks -- seen in a browser, invisible to every assertion here
+// until this one.
+assert.match(workspaceUiJs, /ORPHAN_EMPHASIS_RE/,
+  "emphasis markers that lost their pair must be stripped, not printed");
+const boldFn = /function appendBoldText\([\s\S]*?\n  }/.exec(workspaceUiJs);
+assert.ok(boldFn, "appendBoldText must exist");
+assert.match(boldFn[0], /replace\(ORPHAN_EMPHASIS_RE, ""\)/,
+  "the plain branch must strip orphaned markers before printing");
