@@ -70,3 +70,8 @@ body.entry-page {
   .entry-card { padding: 22px 20px 18px; }
   .entry-card h1 { font-size: 19px; }
 }
+
+/* 这颗药丸是 position: fixed 的，页面滚到底时它就停在最后一段文字上面。
+   给 body 留出它的高度，让任何内容都不会被永久盖住。 */
+body { padding-bottom: 64px; }
+@media (max-width: 640px) { body { padding-bottom: 56px; } }

@@ -1075,7 +1075,10 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
 .aw-about {
   order: 1;
   width: 100%;
-  max-width: 1640px;
+  /* 这一段是通篇说明文字。1640px 的容器让一行长到约 150 个字符，眼睛扫到行尾再
+     回到行首很容易串行。收窄的是整块——底色块和文字一起变窄，版面仍然对齐，而不是
+     只把文字挤到左边、留下半片空白。下面的工作区、案例表格不受影响。 */
+  max-width: 1040px;
   margin: 0 auto 20px;
   padding-bottom: 4px;
   scroll-margin-top: 86px;
