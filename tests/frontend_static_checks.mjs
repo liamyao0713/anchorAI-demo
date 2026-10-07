@@ -345,7 +345,12 @@ assert.equal(vm.model, "mock-model");
 assert.equal(vm.evidenceStatus, "partial");
 assert.equal(vm.metrics.totalClaims, 2);
 assert.equal(vm.metrics.supportedClaims, 0);
-assert.equal(vm.metrics.correctedClaims, 2);
+// 「已校正」只数**原文真的被改动**的那些。
+// correction-2 的 corrected_claim 是 null —— 原文一个字没动，不能算成功纠正。
+// 旧实现按状态数（MATERIAL_STATUSES 含 unsupported / not_verifiable），所以给出 2。
+assert.equal(vm.metrics.correctedClaims, 1);
+assert.equal(vm.corrections[0].editApplied, true);
+assert.equal(vm.corrections[1].editApplied, false);
 assert.equal(vm.metrics.unsupportedClaims, 1);
 assert.equal(vm.corrections[0].category, "partial support");
 assert.equal(vm.corrections[1].category, "wrong citation");
@@ -739,3 +744,133 @@ const boldFn = /function appendBoldText\([\s\S]*?\n  }/.exec(workspaceUiJs);
 assert.ok(boldFn, "appendBoldText must exist");
 assert.match(boldFn[0], /replace\(ORPHAN_EMPHASIS_RE, ""\)/,
   "the plain branch must strip orphaned markers before printing");
+
+
+// --------------------------------------------------------------------------
+// 「已校正」取数语义回归（2026-10-06 验收退回项 3）
+//
+// 页面上那个数此前由前端自己按 claim 状态推，而 not_verifiable 也被算进去，
+// 于是一次 15 条 claim、10 条无法核验的回答被显示成「14 条已校正」。
+
+{
+  // 后端给了统一计数 → 优先用它，不再自己推
+  const withCounts = workspaceAdapter.normalizeResponse(
+    {
+      query_id: "q-counts",
+      raw_answer: { text: "raw", provider: "p", model: "m" },
+      corrected_answer: { text: "corrected", evidence_status: "partial" },
+      claims: [
+        { claim_id: "c1", text: "a", verification_status: "not_verifiable" },
+        { claim_id: "c2", text: "b", verification_status: "not_verifiable" },
+        { claim_id: "c3", text: "c", verification_status: "partially_supported" },
+      ],
+      corrections: [
+        { correction_id: "r1", claim_id: "c1", original_claim: "a", corrected_claim: "a",
+          verification_status: "not_verifiable", correction_reason: "no comparable evidence" },
+        { correction_id: "r2", claim_id: "c2", original_claim: "b", corrected_claim: "b",
+          verification_status: "not_verifiable", correction_reason: "not retrieved" },
+        { correction_id: "r3", claim_id: "c3", original_claim: "c", corrected_claim: "c (qualified)",
+          verification_status: "partially_supported", correction_reason: "overstated significance" },
+      ],
+      citations: [],
+      audit: {
+        raw_answer_preserved: true, correction_performed: true, evidence_status: "partial",
+        notes: [],
+        counts: { applied_edits: 1, candidate_edits: 0, annotations: 0, unknown: 2, faithful: 0, not_clinical: 0 },
+      },
+    },
+    {}
+  );
+  assert.equal(withCounts.metrics.correctedClaims, 1);
+  assert.equal(withCounts.metrics.notVerifiableClaims, 2);
+}
+
+{
+  // 旧服务没有 counts → 退回本地判断，但判据是「正文变了没有」，
+  // 不是状态词。两条 not_verifiable 且正文未改 → 已校正必须是 0。
+  const legacy = workspaceAdapter.normalizeResponse(
+    {
+      query_id: "q-legacy",
+      raw_answer: { text: "raw", provider: "p", model: "m" },
+      corrected_answer: { text: "corrected", evidence_status: "insufficient" },
+      claims: [
+        { claim_id: "c1", text: "a", verification_status: "not_verifiable" },
+        { claim_id: "c2", text: "b", verification_status: "not_verifiable" },
+      ],
+      corrections: [
+        { correction_id: "r1", claim_id: "c1", original_claim: "a", corrected_claim: "a",
+          verification_status: "not_verifiable", correction_reason: "x" },
+        { correction_id: "r2", claim_id: "c2", original_claim: "b", corrected_claim: null,
+          verification_status: "not_verifiable", correction_reason: "y" },
+      ],
+      citations: [],
+      audit: { raw_answer_preserved: true, correction_performed: false, evidence_status: "insufficient", notes: [] },
+    },
+    {}
+  );
+  assert.equal(legacy.metrics.correctedClaims, 0, "无法核验不是成功纠正");
+  assert.equal(legacy.metrics.notVerifiableClaims, 2);
+}
+
+{
+  // 后端显式给了 edit_applied → 以它为准，哪怕文本比较会得出别的结论
+  const explicit = workspaceAdapter.normalizeResponse(
+    {
+      query_id: "q-explicit",
+      raw_answer: { text: "raw", provider: "p", model: "m" },
+      corrected_answer: { text: "corrected", evidence_status: "partial" },
+      claims: [{ claim_id: "c1", text: "a", verification_status: "partially_supported" }],
+      corrections: [
+        { correction_id: "r1", claim_id: "c1", original_claim: "a", corrected_claim: "a (changed)",
+          edit_applied: false, verification_status: "partially_supported",
+          correction_reason: "回查未通过，保留原文" },
+      ],
+      citations: [],
+      audit: { raw_answer_preserved: true, correction_performed: true, evidence_status: "partial", notes: [] },
+    },
+    {}
+  );
+  assert.equal(explicit.corrections[0].editApplied, false);
+  assert.equal(explicit.metrics.correctedClaims, 0, "回查未通过的候选不算已应用");
+}
+
+console.log("corrected-count semantics checks passed");
+
+// --------------------------------------------------------------------------
+// 空项兼容回归（2026-10-06 第三轮验收补充）
+//
+// corrections / claims / citations 是网络来的数组，里面可能有 null。
+// normalizeCorrections 的其余取值都写了 `correction && ...`，新增的 edit_applied
+// 漏了这一层，于是 corrections:[null] 会抛 TypeError 把整次渲染打挂。
+{
+  const withNulls = workspaceAdapter.normalizeResponse(
+    {
+      query_id: "q-nulls",
+      raw_answer: { text: "raw", provider: "p", model: "m" },
+      corrected_answer: { text: "corrected", evidence_status: "partial" },
+      claims: [null, { claim_id: "c1", text: "a", verification_status: "supported" }],
+      corrections: [null, { correction_id: "r1", claim_id: "c1", original_claim: "a",
+                            corrected_claim: "a", verification_status: "supported",
+                            correction_reason: "ok" }],
+      citations: [null],
+      audit: { raw_answer_preserved: true, correction_performed: false,
+               evidence_status: "partial", notes: [null] },
+    },
+    {}
+  );
+  assert.equal(withNulls.metrics.correctedClaims, 0);
+  assert.ok(Array.isArray(withNulls.corrections));
+}
+
+// 整个数组是 null、或字段整个缺失，也不能抛
+{
+  for (const payload of [
+    { query_id: "q1", corrections: null, claims: null, citations: null },
+    { query_id: "q2" },
+  ]) {
+    const vm = workspaceAdapter.normalizeResponse(payload, {});
+    assert.equal(vm.metrics.correctedClaims, 0);
+  }
+}
+
+console.log("null-item tolerance checks passed");

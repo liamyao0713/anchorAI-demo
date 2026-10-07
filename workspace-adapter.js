@@ -24,7 +24,12 @@
     const claims = normalizeClaims(safePayload.claims);
     const corrections = normalizeCorrections(safePayload.corrections, claims);
     const citations = normalizeCitations(safePayload.citations, corrections);
-    const metrics = buildMetrics(claims, corrections, citations);
+    const metrics = buildMetrics(
+      claims,
+      corrections,
+      citations,
+      safePayload.audit && safePayload.audit.counts ? safePayload.audit.counts : null
+    );
     const audit = normalizeAudit(safePayload.audit);
     const queryId = valueOrDash(safePayload.query_id);
     const question = valueOrDash(safePayload.question || safeContext.question);
@@ -191,10 +196,26 @@
       const reason = valueOrDash(correction && correction.correction_reason);
       const category = normalizeCorrectionCategory(correction && correction.category, status, reason, original);
       const material = isMaterialCorrection(status, original, corrected);
+      // 原文到底有没有被改动，和「这条是不是一个发现」是两件事。
+      //
+      // material 用来决定严重度与归类（外观相关），editApplied 只回答一件事：
+      // 正文变了没有。此前「已校正」这个数用的是 material，而 MATERIAL_STATUSES
+      // 含 not_verifiable，于是一次 15 条 claim、10 条无法核验的回答被显示成
+      // 「14 条已校正」。无法核验不是成功纠正。
+      // correction 可能是 null：这个数组是网络来的，normalizeCorrections 的其余取值
+      // 都走了 `correction && ...`，这里漏了，于是 corrections:[null] 会抛
+      // TypeError 把整次响应渲染打挂。
+      const editApplied = correction && typeof correction.edit_applied === "boolean"
+        ? correction.edit_applied
+        : Boolean(
+            corrected &&
+            normalizeComparableText(corrected) !== normalizeComparableText(original)
+          );
       return {
         id: valueOrDash(correction && correction.correction_id) === DASH ? `correction-${index + 1}` : String(correction.correction_id),
         claimId: claim ? claim.id : (claimId || DASH),
         category,
+        editApplied,
         severity: deriveSeverity(status, material),
         originalClaim: original,
         correctedClaim: corrected || null,
@@ -255,12 +276,21 @@
     });
   }
 
-  function buildMetrics(claims, corrections, citations) {
+  function buildMetrics(claims, corrections, citations, counts) {
+    // 「已校正」优先读后端的统一结构化计数：正文、修订、审计、引用、计数都从同一份
+    // EditPlan 产出，前端自己再推一遍只会推出第二个真相。
+    //
+    // 后端没给这个字段时（旧服务）退回本地判断，但判据是**正文有没有被改动**，
+    // 不是状态词——把 not_verifiable 当成成功纠正，是这个数字此前错得那么离谱的原因。
+    const appliedEdits =
+      counts && Number.isInteger(counts.applied_edits)
+        ? counts.applied_edits
+        : corrections.filter((correction) => correction.editApplied).length;
     return {
       citationCount: citations.length,
       totalClaims: claims.length,
       supportedClaims: claims.filter((claim) => claim.verificationStatus === "supported").length,
-      correctedClaims: corrections.filter((correction) => correction.material).length,
+      correctedClaims: appliedEdits,
       unsupportedClaims: claims.filter((claim) => (
         claim.verificationStatus === "unsupported" ||
         claim.verificationStatus === "conflicting"
