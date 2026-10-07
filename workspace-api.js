@@ -3,6 +3,7 @@
 
   const DEFAULT_API_BASE_URL = "https://api.882498.xyz";
   const API_STORAGE_KEY = "ANCHOR_API_BASE_URL";
+  const MODELS_PATH = "/api/models";
   const REQUEST_TIMEOUT_MS = 180000;
   const JSON_CHAT_PATH = "/api/chat";
   const STREAM_CHAT_PATH = "/api/chat/stream";
@@ -169,7 +170,9 @@
         "Accept": STREAM_MEDIA_TYPE,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ question: options.question }),
+      // 模型与粘贴的答案都是**可选**的：没选就不发，后端按默认走。少发一个空字段，
+      // 也就少一次「空字符串算不算一个选择」的歧义。
+      body: JSON.stringify(buildChatBody(options)),
       signal: options.signal,
     });
 
@@ -209,6 +212,15 @@
     return { fallback: false, payload: finalPayload };
   }
 
+  function buildChatBody(options) {
+    const body = { question: options.question };
+    const model = typeof options.model === "string" ? options.model.trim() : "";
+    if (model) body.llm_model = model;
+    const pasted = typeof options.rawAnswer === "string" ? options.rawAnswer.trim() : "";
+    if (pasted) body.raw_answer = pasted;
+    return body;
+  }
+
   async function requestJsonChat(options) {
     const response = await fetch(buildApiUrl(options.apiBase, JSON_CHAT_PATH), {
       method: "POST",
@@ -216,7 +228,9 @@
         "Accept": "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ question: options.question }),
+      // 模型与粘贴的答案都是**可选**的：没选就不发，后端按默认走。少发一个空字段，
+      // 也就少一次「空字符串算不算一个选择」的歧义。
+      body: JSON.stringify(buildChatBody(options)),
       signal: options.signal,
     });
     const payload = await readJsonSafely(response);
@@ -228,6 +242,24 @@
       throw new WorkspaceApiError(buildErrorInfo("SCHEMA_MISMATCH", response.status, null));
     }
     return payload;
+  }
+
+  //: 可选模型由**后端**给出，前端不写死：清单改了之后不重新部署前端也能生效，
+  //: 而且列出来的每一项都保证是后端肯接受的。拿不到就返回空，界面据此退回「默认模型」。
+  async function fetchModelCatalog(options) {
+    try {
+      const response = await fetch(buildApiUrl(options.apiBase, MODELS_PATH), {
+        method: "GET",
+        headers: { "Accept": "application/json" },
+        signal: options.signal,
+      });
+      if (!response.ok) return null;
+      const payload = await readJsonSafely(response);
+      if (!payload || !Array.isArray(payload.models) || !payload.models.length) return null;
+      return payload;
+    } catch (error) {
+      return null;
+    }
   }
 
   async function readNdjsonStream(body, onEvent) {
@@ -345,6 +377,7 @@
 
   const exported = {
     DEFAULT_API_BASE_URL,
+    fetchModelCatalog,
     API_STORAGE_KEY,
     REQUEST_TIMEOUT_MS,
     JSON_CHAT_PATH,

@@ -219,6 +219,14 @@
       noneReturned: "None returned.",
       connectionPrefix: "Connection: {status}",
       questionRequired: "Question must not be empty.",
+      baseModelLabel: "Base model",
+      baseModelNote: "The model choice applies to this answer only; Anchor verifies with its own configured model.",
+      pasteToggle: "Paste an answer instead",
+      pasteCancel: "Back to generating an answer",
+      pasteLabel: "Answer to verify",
+      pastePlaceholder: "Paste an answer here and Anchor will verify it instead of generating one",
+      pasteNote: "The question is still required: coverage gaps and the per-outcome evidence dossier are derived from the question, not from the answer.",
+      pasteRequired: "Paste the answer you want verified, or switch back to generating one.",
       requestFailed: "The request failed.",
       idle: "Idle",
       serverProcessing: "Server processing. Results will update as real stream events arrive.",
@@ -499,6 +507,14 @@
       noneReturned: "未返回。",
       connectionPrefix: "连接：{status}",
       questionRequired: "问题不能为空。",
+      baseModelLabel: "基座模型",
+      baseModelNote: "这个选择只决定 A 框由哪个模型生成；Anchor 的核验始终用它自己配置的模型。",
+      pasteToggle: "改为粘贴一段答案",
+      pasteCancel: "改回由模型生成",
+      pasteLabel: "待校正的答案",
+      pastePlaceholder: "把一段答案贴在这里，Anchor 将直接校正它，而不再生成",
+      pasteNote: "问题仍然必填：覆盖缺口与逐结局证据底稿都是从问题算出来的，不是从答案算的。",
+      pasteRequired: "请贴上要校正的答案，或改回由模型生成。",
       requestFailed: "请求失败。",
       idle: "空闲",
       serverProcessing: "服务端处理中。结果会随真实 stream 事件更新。",
@@ -629,6 +645,8 @@
     bindEvents();
     renderAll();
     checkConnection();
+    // 清单由后端给，所以要等一次网络。拿不到就把下拉栏收起来，页面照常可用。
+    loadModelCatalog();
 
     function bindEvents() {
       refs.form.addEventListener("submit", (event) => {
@@ -644,6 +662,8 @@
       });
 
       refs.questionInput.addEventListener("input", renderRunControls);
+      refs.modelSelect.addEventListener("change", rememberModelChoice);
+      refs.pasteToggle.addEventListener("click", togglePasteMode);
       refs.clearButton.addEventListener("click", clearCurrentRun);
       refs.copyQuestionButton.addEventListener("click", () => copyValue(refs.questionInput.value, t("questionCopied")));
       refs.retryButton.addEventListener("click", () => {
@@ -838,6 +858,13 @@
         refs.questionInput.focus();
         return;
       }
+      // 开了粘贴模式却没贴东西，就是什么都没要求——与其发一个会退回生成的请求，
+      // 不如当场说清楚。
+      if (pasteModeOn() && !refs.pasteInput.value.trim()) {
+        renderInlineError(t("pasteRequired"));
+        refs.pasteInput.focus();
+        return;
+      }
 
       lastQuestion = question;
       clearInlineError();
@@ -851,10 +878,15 @@
       }, Api.REQUEST_TIMEOUT_MS);
       renderAll();
 
+      const model = selectedModel();
+      const rawAnswer = pasteModeOn() ? refs.pasteInput.value.trim() : "";
+
       try {
         const streamed = await Api.requestStreamedChat({
           apiBase,
           question,
+          model,
+          rawAnswer,
           signal: activeController.signal,
           onStage: (stage) => {
             state = State.recordStage(state, stage, new Date().toISOString());
@@ -875,6 +907,8 @@
           payload = await Api.requestJsonChat({
             apiBase,
             question,
+            model,
+            rawAnswer,
             signal: activeController.signal,
           });
         }
@@ -914,6 +948,10 @@
         activeController.abort();
       }
       refs.questionInput.value = "";
+      // 粘贴的答案也要清。只清问题的话，换一个问题再点运行，Anchor 校验的仍然是
+      // 上一段贴进来的旧文字，而界面上看不出任何异样。
+      refs.pasteInput.value = "";
+      setPasteMode(false);
       lastQuestion = "";
       state = State.clearRun();
       clearInlineError();
@@ -960,6 +998,9 @@
         return;
       }
       apiBase = normalized;
+      // 换了后端就重取清单：不重取的话，下拉栏列的还是上一个后端的模型，选中一个
+      // 新后端不认的，只会拿到一个 400。
+      loadModelCatalog();
       safeLocalStorageSet(Api.API_STORAGE_KEY, apiBase);
       refs.apiBaseInput.value = apiBase;
       state = State.clearRun();
@@ -970,6 +1011,7 @@
 
     function resetApiBase() {
       apiBase = Api.DEFAULT_API_BASE_URL;
+      loadModelCatalog();
       refs.apiBaseInput.value = apiBase;
       safeLocalStorageSet(Api.API_STORAGE_KEY, apiBase);
       state = State.clearRun();
@@ -1009,6 +1051,90 @@
       refs.taskTitle.textContent = vm ? vm.query.title : t("taskTitleIdle");
       refs.topicTag.textContent = vm ? t("currentRun") : t("ready");
       refs.modelTag.textContent = vm ? `${vm.provider} / ${vm.model}` : t("serverConfiguredModel");
+    }
+
+    // ---------------------------------------------------------------- 基座模型
+    //
+    // 换的是**生成 A 的那个模型**，不是 Anchor 的核验模型。A 框是被核验的那个对象，
+    // 换模型的意义就在于看不同模型会说出什么、Anchor 又会怎么判它；尺子跟着变，
+    // 两次运行之间就什么都比不了了。后端也是这么实现的：模型覆盖只交给 RawAnswerService。
+
+    const MODEL_STORAGE_KEY = "ANCHOR_BASE_MODEL";
+    let modelCatalog = null;
+
+    function storedModelChoice() {
+      try {
+        return window.localStorage.getItem(MODEL_STORAGE_KEY) || "";
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function rememberModelChoice() {
+      try {
+        window.localStorage.setItem(MODEL_STORAGE_KEY, refs.modelSelect.value || "");
+      } catch (error) {
+        // 隐私模式下写不进去。记不住只是下次要重选，不该因此让页面不能用。
+      }
+    }
+
+    function selectedModel() {
+      const value = refs.modelSelect.value || "";
+      // 选中的就是默认项时不发这个字段：让后端按它自己的配置走，少一处可能不一致的地方。
+      if (!modelCatalog || value === modelCatalog.default) return "";
+      return value;
+    }
+
+    async function loadModelCatalog() {
+      const catalog = await Api.fetchModelCatalog({ apiBase });
+      if (!catalog) {
+        // 取不到清单就把下拉栏收起来，而不是摆一个猜出来的清单：列一个后端不认的
+        // 模型，用户选中之后只会拿到一个 400。
+        refs.modelSelect.hidden = true;
+        return;
+      }
+      modelCatalog = catalog;
+      refs.modelSelect.hidden = false;
+      while (refs.modelSelect.firstChild) refs.modelSelect.removeChild(refs.modelSelect.firstChild);
+      catalog.models.forEach((model) => {
+        const option = document.createElement("option");
+        option.value = model.id;
+        const price = Number(model.input_per_million_usd);
+        const suffix = Number.isFinite(price) ? ` · $${price.toFixed(2)}/M` : "";
+        option.textContent = `${model.label}${suffix}`;
+        option.title = model.id;
+        refs.modelSelect.appendChild(option);
+      });
+      const remembered = storedModelChoice();
+      const known = catalog.models.some((model) => model.id === remembered);
+      refs.modelSelect.value = known ? remembered : catalog.default;
+    }
+
+    // ---------------------------------------------------------------- 粘贴校正
+
+    function pasteModeOn() {
+      return refs.pasteToggle.getAttribute("aria-expanded") === "true";
+    }
+
+    function setPasteMode(on) {
+      refs.pasteToggle.setAttribute("aria-expanded", on ? "true" : "false");
+      refs.pasteWrap.hidden = !on;
+      // 贴答案时不生成 A，所以选哪个模型没有意义——把它收起来，省得让人以为
+      // 贴进来的文字会被某个模型改写。
+      refs.modelSelect.disabled = on;
+      // 改的是 **i18n 键**，不是文本。``applyStaticTranslations`` 会把每个
+      // ``[data-i18n]`` 元素的 textContent 重设成那个键对应的译文；直接写 textContent
+      // 的话，切换界面语言会把按钮文案刷回「改为粘贴一段答案」，而粘贴区还开着——
+      // 标签和状态当场互相矛盾。
+      refs.pasteToggle.dataset.i18n = on ? "pasteCancel" : "pasteToggle";
+      refs.pasteToggle.textContent = t(refs.pasteToggle.dataset.i18n);
+      renderRunControls();
+    }
+
+    function togglePasteMode() {
+      const next = !pasteModeOn();
+      setPasteMode(next);
+      if (next) refs.pasteInput.focus();
     }
 
     function renderRunControls() {
@@ -2061,6 +2187,10 @@
       taskTitle: required(root, "#aw-task-title"),
       topicTag: required(root, "#aw-topic-tag"),
       modelTag: required(root, "#aw-model-tag"),
+      modelSelect: required(root, "#aw-model"),
+      pasteToggle: required(root, "#aw-paste-toggle"),
+      pasteWrap: required(root, "#aw-paste-wrap"),
+      pasteInput: required(root, "#aw-paste"),
       productBar: required(root, ".aw-product-bar"),
       connectionBadge: required(root, "#aw-connection"),
       apiHost: required(root, "#aw-api-host"),
