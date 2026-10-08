@@ -2332,6 +2332,42 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   opacity: .5;
 }
 
+/* 面板头是深色的，所以这个按钮不能用 .aw-ghost-button 的白底——那会在标题栏里
+   切出一块白。跟着下拉栏的那套半透明白走，两个控件才像同一排。 */
+.aw-panel-tools .aw-panel-tool-button {
+  min-height: 28px;
+  padding: 3px 10px;
+  border-color: rgba(255, 255, 255, .45);
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.aw-panel-tools .aw-panel-tool-button:hover {
+  background: rgba(255, 255, 255, .24);
+}
+
+/* 粘贴模式开着的时候要看得出来：此时 A 不由模型生成，旁边的模型下拉也已禁用。 */
+.aw-panel-tools .aw-panel-tool-button[aria-expanded="true"] {
+  background: #fff;
+  border-color: #fff;
+  color: var(--aw-text);
+  font-weight: 600;
+}
+
+/* 粘贴区搬进 A 框后，textarea 的 rows=6（160px）会把面板正文顶出 41px 的滚动。
+   A 框自己有固定高度，所以在它里面让输入框跟面板走，别跟 rows 走。 */
+.aw-panel-a #aw-paste-wrap .aw-textarea {
+  min-height: 0;
+  height: 112px;
+}
+
+/* 搬进来之后它是 A 框的主要内容了，上下留白按面板的节奏收一收。 */
+.aw-panel-a #aw-paste-wrap {
+  margin-top: 2px;
+}
+
 /* 「这个选择只管 A」这句话要在，但它是脚注，不该和正文抢。 */
 .aw-model-note {
   margin-top: -2px;

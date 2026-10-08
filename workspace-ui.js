@@ -222,6 +222,9 @@
       baseModelLabel: "Base model",
       baseModelNote: "The model choice applies to this answer only; Anchor verifies with its own configured model.",
       pasteToggle: "Paste an answer instead",
+      pasteHere: "Paste answer",
+      pasteModeNote: "Box A will use the answer you paste below. No model writes it, and the provenance is recorded as user-provided.",
+      pasteHereCancel: "Cancel paste",
       pasteCancel: "Back to generating an answer",
       pasteLabel: "Answer to verify",
       pastePlaceholder: "Paste an answer here and Anchor will verify it instead of generating one",
@@ -510,6 +513,9 @@
       baseModelLabel: "基座模型",
       baseModelNote: "这个选择只决定 A 框由哪个模型生成；Anchor 的核验始终用它自己配置的模型。",
       pasteToggle: "改为粘贴一段答案",
+      pasteHere: "粘贴答案",
+      pasteModeNote: "A 框将直接使用你贴在下面的答案，不由任何模型生成；出处会如实记成「用户提供」。",
+      pasteHereCancel: "取消粘贴",
       pasteCancel: "改回由模型生成",
       pasteLabel: "待校正的答案",
       pastePlaceholder: "把一段答案贴在这里，Anchor 将直接校正它，而不再生成",
@@ -639,8 +645,11 @@
     let correctionSearch = "";
     let citationFilter = "all";
     let citationSearch = "";
+    const pasteHome = { parent: null, next: null };
 
     refs.apiBaseInput.value = apiBase;
+    // 必须在任何一次 setPasteMode 之前记下粘贴区的原位，否则关闭粘贴时它搬不回去。
+    rememberPasteHome();
     initUiLanguage();
     bindEvents();
     renderAll();
@@ -663,7 +672,15 @@
 
       refs.questionInput.addEventListener("input", renderRunControls);
       refs.modelSelect.addEventListener("change", rememberModelChoice);
-      refs.pasteToggle.addEventListener("click", togglePasteMode);
+      // 这个按钮在提问卡片里，但粘贴区开启后会搬进 A 框，所以要把 A 框带进视野，
+      // 否则在它原地等着的人会以为什么都没发生。
+      refs.pasteToggle.addEventListener("click", () => {
+        togglePasteMode();
+        if (pasteModeOn()) {
+          refs.pasteWrap.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+      refs.pasteHere.addEventListener("click", togglePasteMode);
       refs.clearButton.addEventListener("click", clearCurrentRun);
       refs.copyQuestionButton.addEventListener("click", () => copyValue(refs.questionInput.value, t("questionCopied")));
       refs.retryButton.addEventListener("click", () => {
@@ -1112,6 +1129,25 @@
 
     // ---------------------------------------------------------------- 粘贴校正
 
+    // 粘贴区只有一个节点：开启时搬进 A 框正文（贴在它该出现的地方），关闭时搬回提问卡片。
+    // 搬家而不是复制，是为了让「值」始终只有一处——两个输入框会立刻带来哪个为准的问题。
+    // ``pasteHome`` 声明在 initWorkspace 顶部的状态里：函数声明会提升，``const`` 不会，
+    // 而 rememberPasteHome() 在那之前就被调用了。
+    function rememberPasteHome() {
+      pasteHome.parent = refs.pasteWrap.parentNode;
+      pasteHome.next = refs.pasteWrap.nextSibling;
+    }
+
+    function movePasteInto(on) {
+      if (!pasteHome.parent) return;
+      if (on) {
+        // 放在「尚未生成原始回答」那块之前：A 框里原始答案本来就出现在这个位置。
+        refs.rawText.parentNode.insertBefore(refs.pasteWrap, refs.rawText);
+      } else if (refs.pasteWrap.parentNode !== pasteHome.parent) {
+        pasteHome.parent.insertBefore(refs.pasteWrap, pasteHome.next);
+      }
+    }
+
     function pasteModeOn() {
       return refs.pasteToggle.getAttribute("aria-expanded") === "true";
     }
@@ -1128,6 +1164,16 @@
       // 标签和状态当场互相矛盾。
       refs.pasteToggle.dataset.i18n = on ? "pasteCancel" : "pasteToggle";
       refs.pasteToggle.textContent = t(refs.pasteToggle.dataset.i18n);
+      // 两个按钮开的是同一个状态，所以两边的 aria-expanded 与文案都要跟着翻；
+      // 只翻一个的话，A 框那个会一直显示「粘贴答案」而粘贴区已经开着。
+      refs.pasteHere.setAttribute("aria-expanded", on ? "true" : "false");
+      refs.pasteHere.dataset.i18n = on ? "pasteHereCancel" : "pasteHere";
+      refs.pasteHere.textContent = t(refs.pasteHere.dataset.i18n);
+      // 粘贴模式下没有模型会写 A，原来那句「这个选择只决定 A 框由哪个模型生成」
+      // 留在那里就是错的。同样只换 i18n 键，切语言才不会刷回去。
+      refs.modelNote.dataset.i18n = on ? "pasteModeNote" : "baseModelNote";
+      refs.modelNote.textContent = t(refs.modelNote.dataset.i18n);
+      movePasteInto(on);
       renderRunControls();
     }
 
@@ -2189,6 +2235,9 @@
       modelTag: required(root, "#aw-model-tag"),
       modelSelect: required(root, "#aw-model"),
       pasteToggle: required(root, "#aw-paste-toggle"),
+      pasteHere: required(root, "#aw-paste-here"),
+      rawText: required(root, "#aw-raw-text"),
+      modelNote: required(root, "#aw-model-note"),
       pasteWrap: required(root, "#aw-paste-wrap"),
       pasteInput: required(root, "#aw-paste"),
       productBar: required(root, ".aw-product-bar"),
