@@ -1,0 +1,42 @@
+<!doctype html>
+<!--
+  离线预览用的小夹具：把 index.html 装进 iframe，填一个问题、提交、滚到 anchor_review
+  三栏，好让无头浏览器截一张图。它不属于产品页面，只是让「跑一次再看一眼」这件事可复现。
+
+  用法：
+    PORT=8039 node tests/mock_frontend_server.mjs          # 同源地提供页面与假 API
+    open "http://127.0.0.1:8039/tests/preview_autorun.html?lang=zh&clean=1"
+  参数：q=问题（mock 里 "anchor review" 给完整三栏，"anchor fallback" 给校正未完成）、
+       lang=en|zh、clean=1 切到净版。
+-->
+<html><head><meta charset="utf-8"><title>anchor_review preview harness</title>
+<style>html,body{margin:0;background:#f1f5f9}iframe{width:1760px;height:1500px;border:0;display:block}</style>
+</head><body>
+<iframe id="f"></iframe>
+<script>
+const params = new URLSearchParams(location.search);
+const question = params.get("q") || "anchor review nerandomilast in IPF";
+const lang = params.get("lang") || "en";
+const clean = params.get("clean") === "1";
+const f = document.getElementById("f");
+// 默认指向**提供本页的那个源**：mock 服务器同时供静态文件和假 API，所以同源即可，
+// 不用处理 CORS。真后端起在别处时用 ?api=http://127.0.0.1:8037 覆盖。
+const api = params.get("api") || location.origin;
+f.addEventListener("load", () => {
+  const w = f.contentWindow, d = f.contentDocument;
+  setTimeout(() => {
+    const langBtn = d.querySelector(`.aw-lang-button[data-ui-lang="${lang}"]`);
+    if (langBtn) langBtn.click();
+    const box = d.getElementById("aw-question");
+    box.value = question;
+    box.dispatchEvent(new w.Event("input", { bubbles: true }));
+    d.getElementById("aw-question-form").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+    setTimeout(() => {
+      if (clean) { const s = d.getElementById("awv7-switch"); s.checked = true; s.dispatchEvent(new w.Event("change", { bubbles: true })); }
+      const section = d.getElementById("aw-anchor-review");
+      w.scrollTo(0, section.getBoundingClientRect().top + w.scrollY - 86);
+    }, 3000);
+  }, 500);
+});
+f.src = `../index.html?api=${encodeURIComponent(api)}`;
+</script></body></html>

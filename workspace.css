@@ -2377,7 +2377,30 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
 
 .aw-paste-row {
   display: flex;
+  align-items: center;
   justify-content: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 三栏（anchor_review）模式下，A 框栏头里的「基座模型 / 粘贴答案」会被搬到这一行。
+   那两个控件是为深色栏头调的白字半透明底，搬到提问卡片的浅底上就看不见了——
+   在这里翻回普通的浅色控件。 */
+.aw-paste-row .aw-panel-tools .aw-select,
+.aw-paste-row .aw-panel-tools .aw-panel-tool-button {
+  border-color: var(--aw-border);
+  background: #fff;
+  color: var(--aw-text);
+}
+
+.aw-paste-row .aw-panel-tools .aw-panel-tool-button:hover {
+  background: #f1f5f9;
+}
+
+.aw-paste-row .aw-panel-tools .aw-panel-tool-button[aria-expanded="true"] {
+  border-color: var(--aw-blue);
+  background: var(--aw-blue-soft);
+  color: var(--aw-text);
 }
 
 .aw-paste-wrap {

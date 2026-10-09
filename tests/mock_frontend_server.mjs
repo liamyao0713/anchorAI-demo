@@ -1,9 +1,13 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 
 const root = resolve(process.cwd());
+// 后端 anchor_v6 还没起来时也要能看三栏：这份样例照合约手写，内容改写自历史
+// docs/demo_v6_inputs 与 v40 页面。问题里带 "anchor review" 就返回它。
+const anchorReviewFixture = JSON.parse(
+  readFileSync(resolve(root, "tests/fixtures/anchor_review_sample.json"), "utf8"));
 const port = Number(process.env.PORT || 8090);
 
 const contentTypes = new Map([
@@ -201,6 +205,27 @@ function mockChatResponse(requestBody) {
         correction_performed: false,
         evidence_status: "insufficient",
         notes: ["mocked insufficient browser test"],
+      },
+    });
+  }
+  if (/anchor review/i.test(question)) {
+    return okResponse({ ...anchorReviewFixture, question });
+  }
+  if (/anchor fallback/i.test(question)) {
+    // 校正未完成：照合约 b_track = b_clean = A 原文，cards 可空，引用核验表仍然给出。
+    const review = anchorReviewFixture.anchor_review;
+    return okResponse({
+      ...anchorReviewFixture,
+      question,
+      anchor_review: {
+        ...review,
+        completed: false,
+        fallback_reason: "LLM correction returned invalid JSON; Anchor fell back to the raw answer.",
+        b_track: review.a_text,
+        b_clean: review.a_text,
+        cards: [],
+        references: [],
+        validation: { minimal_diff_ok: false, pmid_whitelist_ok: true, issues: ["llm_json_invalid"] },
       },
     });
   }

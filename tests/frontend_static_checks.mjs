@@ -15,6 +15,8 @@ const workspaceExportJs = readFileSync("workspace-export.js", "utf8");
 const workspaceUiJs = readFileSync("workspace-ui.js", "utf8");
 const casesCss = readFileSync("cases.css", "utf8");
 const casesJs = readFileSync("cases.js", "utf8");
+const anchorReviewCss = readFileSync("anchor-review.css", "utf8");
+const anchorReviewJs = readFileSync("anchor-review.js", "utf8");
 
 // index.html now carries two independent regions: the live Evidence Verification
 // Workspace, and the archived v40 case gallery migrated below it. The
@@ -150,7 +152,13 @@ assert.match(workspaceCss, /@media \(max-width: 768px\)/, "workspace must define
 assert.match(workspaceCss, /overflow-y:\s*auto/, "workspace panels must scroll internally");
 assert.match(workspaceCss, /\.aw-workspace-panel\s*\{[\s\S]*height:\s*var\(--aw-panel-height\)/, "workspace panels must use a fixed height");
 assert.match(workspaceCss, /\.aw-workspace-panel\s*\{[\s\S]*max-height:\s*var\(--aw-panel-height\)/, "workspace panels must not expand past the fixed height");
-assert.doesNotMatch(workspaceHtml, /--v7-panel-body-height|v7-col-body|setModel\(|setPage\(/, "workspace entry must not include legacy static demo behavior");
+// 2026-10-09：历史 v39/v40 的三栏（.v7-cols / .v7-col-body）现在是工作台的一部分，
+// 用来显示响应里的 anchor_review，所以 v7-col-body 不再是「遗留静态 demo」的证据。
+// 真正不该回来的是画廊那套全局切换函数和预渲染的多病例/多模型骨架。
+assert.doesNotMatch(workspaceHtml, /--v7-panel-body-height|setModel\(|setPage\(|setCorrView\(|v7Slide\(|v7EqualizeCols\(/,
+  "workspace entry must not include legacy static demo behavior");
+assert.doesNotMatch(workspaceHtml, /class=["'][^"']*\bmwrap\b|class=["'][^"']*\bmtabs\b/,
+  "workspace entry must not reintroduce the gallery's per-case / per-model tab skeleton");
 assert.match(workspaceUiJs, /UI_LANGUAGE_STORAGE_KEY/, "workspace must persist the global UI language setting");
 assert.match(workspaceUiJs, /setUiLanguage/, "workspace must wire global UI language switching");
 assert.match(workspaceUiJs, /applyStaticTranslations/, "workspace must translate static UI text");
@@ -166,7 +174,7 @@ assert.match(js, /setBusy\(sendButton, retryButton, true\)/, "frontend must disa
 assert.match(js, /setBusy\(sendButton, retryButton, false\)/, "frontend must restore buttons after completion/failure");
 assert.doesNotMatch(js, /innerHTML\s*=/, "API/model output must not be rendered through innerHTML assignment");
 
-const workspaceBundle = `${workspaceCss}\n${workspaceApiJs}\n${workspaceAdapterJs}\n${workspaceStateJs}\n${workspaceExportJs}\n${workspaceUiJs}`;
+const workspaceBundle = `${workspaceCss}\n${workspaceApiJs}\n${workspaceAdapterJs}\n${workspaceStateJs}\n${workspaceExportJs}\n${workspaceUiJs}\n${anchorReviewCss}\n${anchorReviewJs}`;
 assert.doesNotMatch(workspaceBundle, /innerHTML\s*=/, "workspace must not render untrusted model output through innerHTML assignment");
 assert.doesNotMatch(workspaceBundle, /\balert\s*\(/, "workspace must use toast feedback rather than alert");
 assert.match(workspaceUiJs, /renderMarkdown/, "workspace must safely render Markdown through DOM nodes");
@@ -666,6 +674,149 @@ assert.match(workspaceAdapterJs, /CONCLUDED_STATUSES = new Set\(\["unsupported",
   "key corrections must be limited to verdicts that concluded something");
 assert.match(workspaceAdapterJs, /CONCLUDED_STATUSES\.has\(/,
   "the filter must actually be applied");
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// anchor_review：历史 v39/v40 的 Ⓐ|Ⓑ|Ⓒ 三栏（2026-10-09）
+//
+// 响应里带 anchor_review 时，这三栏顶替工作台原来的 A/B/C 面板；不带的旧响应
+// 完全走原有渲染。下面的断言盯住三件事：接线接上了、色值与断点照搬了历史、
+// 以及这一层仍然不碰 innerHTML。
+// ════════════════════════════════════════════════════════════════════════════
+
+assert.match(html, /anchor-review\.css\?v=/, "index must load the anchor_review stylesheet");
+assert.match(html, /anchor-review\.js\?v=/, "index must load the anchor_review renderer");
+assert.ok(html.indexOf("anchor-review.js") < html.indexOf("workspace-ui.js"),
+  "the renderer must load before the UI that reads window.AnchorReview");
+
+assert.match(workspaceHtml, /id="aw-anchor-review"[^>]*hidden/,
+  "the review section must start hidden so a response without anchor_review changes nothing");
+["v7-col v7-col-a", "v7-col v7-col-b", "v7-col v7-col-c"].forEach((className) => {
+  assert.ok(workspaceHtml.includes(className), `review section must carry ${className}`);
+});
+["v7-h-a", "v7-h-b", "v7-h-c"].forEach((className) => {
+  assert.ok(workspaceHtml.includes(className), `review section must carry the ${className} header`);
+});
+assert.match(workspaceHtml, /<span class="v7-badge">Ⓐ<\/span>/, "Ⓐ column must carry its circled badge");
+assert.match(workspaceHtml, /<span class="v7-badge">Ⓑ<\/span>/, "Ⓑ column must carry its circled badge");
+assert.match(workspaceHtml, /<span class="v7-badge">Ⓒ<\/span>/, "Ⓒ column must carry its circled badge");
+assert.match(workspaceHtml, /class="v7-switch"/, "Ⓑ header must carry the track/clean switch");
+assert.match(workspaceHtml, /class="v7-knob"/, "the switch must use the historical knob markup");
+assert.match(workspaceHtml, /id="awv7-b-track"[^>]*class="v7-track-view"/, "Ⓑ must hold a track view");
+assert.match(workspaceHtml, /id="awv7-b-clean"[^>]*class="v7-clean-view"/, "Ⓑ must hold a clean view");
+assert.match(workspaceHtml, /id="awv7-b-refs"[^>]*refs-collapse/,
+  "the corrected references must live in a collapsible details inside Ⓑ");
+assert.match(workspaceHtml, /id="awv7-c-cards"/, "Ⓒ must hold the correction cards");
+assert.match(workspaceHtml, /id="awv7-c-cites"/, "Ⓒ must hold the citation check table");
+assert.match(workspaceHtml, /id="awv7-b-incomplete"[^>]*class="v7-incomplete"/,
+  "Ⓑ must be able to say the correction did not complete");
+
+// 这一段文案也走现有的中英切换机制，不是写死的英文。
+["reviewNoteA", "reviewTitleB", "reviewTitleC", "reviewTrack", "reviewClean",
+ "reviewCardsHeading", "reviewCitationsHeading"].forEach((key) => {
+  assert.ok(workspaceHtml.includes(`data-i18n="${key}"`), `review copy ${key} must come from the i18n table`);
+  assert.ok(workspaceUiJs.includes(`${key}:`), `${key} must be defined in UI_TEXT`);
+});
+// 两套都要有：只定义英文的话切到中文会静默回落，看不出漏了。
+const uiTextBlock = workspaceUiJs.slice(
+  workspaceUiJs.indexOf("const UI_TEXT = {"),
+  workspaceUiJs.indexOf("function initWorkspace()"));
+["reviewTitleA", "reviewNoteA", "reviewTitleB", "reviewTitleC", "reviewTrack", "reviewClean",
+ "reviewCardSaid", "reviewCardVerified", "reviewCardWhy", "reviewNoCards", "reviewReferences",
+ "reviewIncomplete", "reviewSourceKb"].forEach((key) => {
+  // 只数 UI_TEXT 里的定义：collectRefs 里也有同名的 key（指向 DOM 节点）。
+  assert.equal((uiTextBlock.match(new RegExp(`\\n\\s+${key}:`, "g")) || []).length, 2,
+    `${key} must be defined in both the en and zh tables`);
+});
+assert.match(workspaceUiJs, /reviewTitleA: "未矫正 · \{model\} 原话"/,
+  "the Ⓐ header must name the model that wrote the answer");
+// Ⓐ 点名的必须是写出原话的那个模型。anchor_review.model 是 Anchor 的**校正**模型，
+// 用它当 Ⓐ 的标题，等于说校正模型写了被校正的那段话。
+assert.match(workspaceUiJs, /state\.response\.raw_answer \? state\.response\.raw_answer\.model/,
+  "the Ⓐ header must take its model from raw_answer, not from the correcting model");
+// 校正没跑完时没有卡片，不等于「无需校正」。
+assert.match(workspaceUiJs, /reviewCardsUnavailable/,
+  "a failed correction must not be reported as 'nothing to correct'");
+assert.match(workspaceUiJs, /renderReviewCards\(review\.cards, review\.completed\)/,
+  "the cards renderer must know whether the correction completed");
+
+// 历史色值与几何。这些是设计规格里点名的数字，改掉就不再是「照历史复现」了。
+assert.match(anchorReviewCss, /linear-gradient\(90deg, #b91c1c, #dc2626\)/, "Ⓐ header gradient must match v39/v40");
+assert.match(anchorReviewCss, /linear-gradient\(90deg, #15803d, #16a34a\)/, "Ⓑ header gradient must match v39/v40");
+assert.match(anchorReviewCss, /linear-gradient\(90deg, #6d28d9, #7c3aed\)/, "Ⓒ header gradient must match v39/v40");
+assert.match(anchorReviewCss, /grid-template-columns: 1fr 1fr 1fr/, "the three columns must be equal thirds");
+assert.match(anchorReviewCss, /gap: 14px/, "column gap must match the historical 14px");
+assert.match(anchorReviewCss, /@media \(max-width: 1100px\)[\s\S]*grid-template-columns: 1fr;/,
+  "the columns must stack below the historical 1100px breakpoint");
+assert.match(anchorReviewCss, /#aw-anchor-review \{[\s\S]*max-width: 1640px/,
+  "the review section must use the historical 1640px page width");
+assert.match(anchorReviewCss, /\.v7-col-h \{[\s\S]*position: sticky/, "column headers must stay sticky");
+
+// 行内修订标记：五种标记、历史的 ::before 字符。
+assert.match(anchorReviewCss, /\.diff-del \{[\s\S]*line-through/, "DEL must render as a strikethrough");
+assert.match(anchorReviewCss, /\.diff-del::before \{\s*content: '⌫'/, "DEL must keep its ⌫ prefix");
+assert.match(anchorReviewCss, /\.diff-add::before \{\s*content: '＋'/, "NEW must keep its ＋ prefix");
+assert.match(anchorReviewCss, /\.diff-note::before \{\s*content: "✋ Anchor: "/, "NOTE must keep its ✋ prefix");
+assert.match(anchorReviewCss, /\.diff-up::before \{ content: "⬆️ "; \}/, "UP must keep its ⬆️ prefix");
+assert.match(anchorReviewCss, /\.diff-hl::before \{ content: "⭐ "; \}/, "HL must keep its ⭐ prefix");
+// 规格点名的缺口：历史 .v7-ans 里的 <mark> 根本没有 CSS，靠浏览器默认黄。
+assert.match(anchorReviewCss, /\.v7-ans mark \{[\s\S]*background: #FEF08A/,
+  "the Ⓐ column highlight must be styled rather than left to the browser default");
+
+// 整份样式都压在 #aw-anchor-review 底下：.card / .ctab / .diff-del 这些类名同时存在于
+// 下方归档的案例画廊，不限定作用域就会互相串味。
+assert.doesNotMatch(anchorReviewCss, /^(?!.*#aw-anchor-review)[^@\n{}]+\{/m,
+  "every anchor_review rule must be scoped under #aw-anchor-review");
+
+// 渲染层只产出结构，由 UI 用 createElement/textContent 落地。正文来自模型，所以
+// 「不把它交给 innerHTML」这条规矩必须覆盖新模块。
+assert.doesNotMatch(anchorReviewJs, /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\./,
+  "the anchor_review renderer must not build HTML strings or touch the DOM");
+assert.match(anchorReviewJs, /parseTrack/, "the renderer must expose the track-view parser");
+assert.match(anchorReviewJs, /parseClean/, "the renderer must expose the clean-view parser");
+assert.match(anchorReviewJs, /parseAnswer/, "the renderer must expose the Ⓐ-column parser");
+
+// 接线：三栏的渲染、等高内滚、滑块、以及语言/窗口变化后的重算。
+assert.match(workspaceUiJs, /renderAnchorReview\(\)/, "the workspace must render the review columns");
+assert.match(workspaceUiJs, /currentReview\(\)/, "the workspace must read anchor_review off the response");
+assert.match(workspaceUiJs, /equalizeReviewColumns/, "the columns must be equalised to the shortest one");
+assert.match(workspaceUiJs, /REVIEW_VIEWPORT_SHARE = 0\.82/, "the height cap must match the historical 82% of the viewport");
+assert.match(workspaceUiJs, /REVIEW_MIN_HEIGHT = 460/, "the height floor must match the historical 460px");
+assert.match(workspaceUiJs, /setTimeout\(equalizeReviewColumns, 150\)/,
+  "resize must debounce the re-fit the way the historical page did");
+assert.match(workspaceUiJs, /classList\.toggle\("show-clean"/, "the switch must drive the historical show-clean class");
+assert.match(workspaceUiJs, /refs\.workbench\.hidden = on/,
+  "the review columns must replace the original panels rather than sit beside them");
+// A 框栏头里的「基座模型 / 粘贴答案」是下一次运行要用的控件，不能跟着面板一起消失。
+assert.match(workspaceUiJs, /movePanelTools/, "the pre-run controls must survive the switch to the review columns");
+assert.match(workspaceCss, /\.aw-paste-row \.aw-panel-tools/,
+  "the relocated controls must be restyled for the light question card");
+
+// 这一版明确不渲染的东西。渲染了就得有人去核对它们的历史版式，而那不在这次范围里。
+["key_takeaways", "outcome_comparisons"].forEach((field) => {
+  assert.equal(anchorReviewJs.includes(field), false, `this version must not render ${field}`);
+  assert.equal(workspaceUiJs.includes(field), false, `this version must not render ${field}`);
+});
+
+// 本地预览靠 URL 参数改 API 地址；线上默认值不能变。
+assert.match(workspaceUiJs, /URLSearchParams\(window\.location\.search\)\.get\("api"\)/,
+  "a preview must be able to point the page at a local API with ?api=");
+assert.match(workspaceApiJs, /DEFAULT_API_BASE_URL = "https:\/\/api\.882498\.xyz"/,
+  "the deployed default API base URL must not change");
+
+// 样例响应：既是离线渲染测试的输入，也是后端该照着填什么的样板。
+const reviewFixture = JSON.parse(readFileSync("tests/fixtures/anchor_review_sample.json", "utf8"));
+assert.ok(reviewFixture.raw_answer && reviewFixture.corrected_answer,
+  "the fixture must stay a valid AnchorChatResponse so the existing panels can read it too");
+const sampleReview = reviewFixture.anchor_review;
+["engine", "model", "language", "completed", "a_text", "a_marks", "b_track", "b_clean",
+ "references", "cards", "citation_checks", "validation"].forEach((field) => {
+  assert.ok(Object.prototype.hasOwnProperty.call(sampleReview, field),
+    `the fixture must carry the contract field ${field}`);
+});
+assert.equal(sampleReview.engine, "anchor_v6");
+assert.ok(sampleReview.b_track.includes("〚DEL〛") && sampleReview.b_track.includes("〚NEW〛"),
+  "the fixture must exercise the track-changes markers");
 
 console.log("frontend static checks passed");
 

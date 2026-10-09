@@ -1,0 +1,202 @@
+{
+  "query_id": "fixture-anchor-review-n1",
+  "question": "What is the evidence for nerandomilast in idiopathic pulmonary fibrosis, and how does it compare with pirfenidone and nintedanib for slowing FVC decline and for mortality?",
+  "raw_answer": {
+    "text": "Nerandomilast (BI 1015550) is an oral preferential PDE4B inhibitor. Its pivotal phase 2 trial (N=147 IPF patients, ~60% on background pirfenidone or nintedanib) evaluated 12‑week FVC change.\n- **FVC decline (12 weeks):** Least‑squares mean change in FVC was –5.6 mL with nerandomilast 9 mg BID and –79.7 mL with placebo (placebo‑adjusted difference 74.1 mL, 95% CI 27.4–120.8; P=0.002) [pivotal trial: Richeldi L et al., NEJM 2022; PMID 35569036]. The 18 mg BID dose showed a similar difference of 81.3 mL (95% CI 33.7–129.0). **GRADE: moderate** – well‑performed trial but short duration, phase 2, and surrogate endpoint (12‑week FVC change).\n- **Mortality:** The trial was not powered for mortality; only 2 deaths occurred (1 placebo, 1 nerandomilast) – **very low certainty**.\n- **Pirfenidone:** In the 52‑week ASCEND trial, pirfenidone reduced FVC decline by 193 mL (95% CI 83–303; GRADE **high** for FVC) [King TE et al., NEJM 2014; PMID 24836312]. All‑cause mortality HR 0.55 (95% CI 0.31–0.97) in pooled analysis [Noble PW et al., Eur Respir J 2016; PMID 26886654].\n- **Nintedanib:** In the INPULSIS trials, nintedanib slowed annual FVC decline by 125.2 mL/year (95% CI 77.7–172.8; GRADE **high**) [Richeldi L et al., NEJM 2014; PMID 24836310]. Mortality reduction was not individually significant (HR 0.70, 95% CI 0.47–1.03) [Rochwerg B et al., Ann Intern Med 2017; PMID 28456699].\n\n**Overall confidence: low** — nerandomilast lacks phase 3 data on sustained FVC decline and mortality; nerandomilast is investigational, with phase 3 FIBRONEER‑IPF ongoing.",
+    "provider": "openrouter",
+    "model": "deepseek/deepseek-chat",
+    "grounded_by_anchor": false,
+    "verification_status": "uncorrected"
+  },
+  "corrected_answer": {
+    "text": "Nerandomilast (BI 1015550) is an oral preferential PDE4B inhibitor. Its pivotal phase 2 trial (N=147 IPF patients, ~60% on background pirfenidone or nintedanib) evaluated 12‑week FVC change.\n- **FVC decline (12 weeks):** Least‑squares mean change in FVC was –5.6 mL with nerandomilast 9 mg BID and –79.7 mL with placebo (placebo‑adjusted difference 74.1 mL, 95% CI 27.4–120.8; P=0.002) [pivotal trial: Richeldi L et al., NEJM 2022; PMID 35569036]. The 18 mg BID dose showed a similar difference of 81.3 mL (95% CI 33.7–129.0). The phase 3 FIBRONEER-IPF trial (N=1177) read out positive: nerandomilast 18 mg improved 52-week FVC by 68.8 mL (95% CI 30.3–107.4) [2]; this meets the Maher 2024 minimal clinically important difference (MID) threshold of ≥50 mL/year [3]. FVC is an FDA-validated surrogate, not a patient-important outcome (POI).\n- **Mortality:** In FIBRONEER-IPF, all-cause mortality HR 0.66 (95% CI 0.41–1.08) favoured nerandomilast but was not statistically significant (underpowered) [2]. The Petnak 2021 meta-analysis (n=12,956) pooled antifibrotic all-cause mortality RR 0.55 (95% CI 0.39–0.78) [5]. [Upgrade: LLM intended a mortality MA but cited the wrong PMIDs → Anchor Petnak 2021 MA (n=12,956)]\n- **Pirfenidone:** In the 52‑week ASCEND trial, pirfenidone reduced FVC decline by 193 mL (95% CI 83–303; GRADE **high** for FVC) [King TE et al., NEJM 2014; PMID 24836312]. All‑cause mortality HR 0.55 (95% CI 0.31–0.97) in pooled analysis [5]\n- **Nintedanib:** In the INPULSIS trials, nintedanib slowed annual FVC decline by 125.2 mL/year (95% CI 77.7–172.8; GRADE **high**) [Richeldi L et al., NEJM 2014; PMID 24836310]. Mortality reduction was not individually significant (HR 0.70, 95% CI 0.47–1.03) [5] (此处原引用指向一篇 FFR 心血管事件论文，已换成 KB 里的拗纵维化死亡率 meta 分析)\n\n**Overall confidence: low** — nerandomilast lacks phase 3 data on sustained FVC decline and mortality; nerandomilast is investigational, with phase 3 FIBRONEER-IPF having read out positive in 2025 [2]; a network meta-analysis (n=16,525) ranks nerandomilast 18 mg joint-best for FVC [4].",
+    "evidence_status": "partial"
+  },
+  "claims": [],
+  "corrections": [],
+  "citations": [],
+  "confidence": null,
+  "latency_ms": 41820,
+  "audit": {
+    "raw_answer_preserved": true,
+    "correction_performed": true,
+    "evidence_status": "partial",
+    "notes": [
+      "Anchor corrected this answer against 15 retrieved KB rows; every PMID was checked against NCBI E-utilities."
+    ]
+  },
+  "anchor_review": {
+    "engine": "anchor_v6",
+    "prompt_source": "historical gen_anchor_correction.py SYSTEM_PROMPT; materials = 15 retrieved KB rows + NCBI citation checks",
+    "model": "anthropic/claude-sonnet-5.5",
+    "language": "en",
+    "completed": true,
+    "fallback_reason": null,
+    "a_text": "Nerandomilast (BI 1015550) is an oral preferential PDE4B inhibitor. Its pivotal phase 2 trial (N=147 IPF patients, ~60% on background pirfenidone or nintedanib) evaluated 12‑week FVC change.\n- **FVC decline (12 weeks):** Least‑squares mean change in FVC was –5.6 mL with nerandomilast 9 mg BID and –79.7 mL with placebo (placebo‑adjusted difference 74.1 mL, 95% CI 27.4–120.8; P=0.002) [pivotal trial: Richeldi L et al., NEJM 2022; PMID 35569036]. The 18 mg BID dose showed a similar difference of 81.3 mL (95% CI 33.7–129.0). **GRADE: moderate** – well‑performed trial but short duration, phase 2, and surrogate endpoint (12‑week FVC change).\n- **Mortality:** The trial was not powered for mortality; only 2 deaths occurred (1 placebo, 1 nerandomilast) – **very low certainty**.\n- **Pirfenidone:** In the 52‑week ASCEND trial, pirfenidone reduced FVC decline by 193 mL (95% CI 83–303; GRADE **high** for FVC) [King TE et al., NEJM 2014; PMID 24836312]. All‑cause mortality HR 0.55 (95% CI 0.31–0.97) in pooled analysis [Noble PW et al., Eur Respir J 2016; PMID 26886654].\n- **Nintedanib:** In the INPULSIS trials, nintedanib slowed annual FVC decline by 125.2 mL/year (95% CI 77.7–172.8; GRADE **high**) [Richeldi L et al., NEJM 2014; PMID 24836310]. Mortality reduction was not individually significant (HR 0.70, 95% CI 0.47–1.03) [Rochwerg B et al., Ann Intern Med 2017; PMID 28456699].\n\n**Overall confidence: low** — nerandomilast lacks phase 3 data on sustained FVC decline and mortality; nerandomilast is investigational, with phase 3 FIBRONEER‑IPF ongoing.",
+    "a_marks": [
+      "**GRADE: moderate**",
+      "PMID 26886654",
+      "PMID 28456699",
+      "phase 3 FIBRONEER‑IPF ongoing"
+    ],
+    "b_track": "Nerandomilast (BI 1015550) is an oral preferential PDE4B inhibitor. Its pivotal phase 2 trial (N=147 IPF patients, ~60% on background pirfenidone or nintedanib) evaluated 12‑week FVC change.\n- **FVC decline (12 weeks):** Least‑squares mean change in FVC was –5.6 mL with nerandomilast 9 mg BID and –79.7 mL with placebo (placebo‑adjusted difference 74.1 mL, 95% CI 27.4–120.8; P=0.002) [pivotal trial: Richeldi L et al., NEJM 2022; PMID 35569036]. The 18 mg BID dose showed a similar difference of 81.3 mL (95% CI 33.7–129.0). 〚DEL〛**GRADE: moderate** – well‑performed trial but short duration, phase 2, and surrogate endpoint (12‑week FVC change).〚/DEL〛 〚NEW〛The phase 3 FIBRONEER-IPF trial (N=1177) read out positive: nerandomilast 18 mg improved 52-week FVC by 〚HL 68.8 mL (95% CI 30.3–107.4)〛 [2]; this meets the Maher 2024 minimal clinically important difference (MID) threshold of ≥50 mL/year [3]. FVC is an FDA-validated surrogate, not a patient-important outcome (POI).〚/NEW〛\n- **Mortality:** 〚DEL〛The trial was not powered for mortality; only 2 deaths occurred (1 placebo, 1 nerandomilast) – **very low certainty**.〚/DEL〛 〚NEW〛In FIBRONEER-IPF, all-cause mortality HR 0.66 (95% CI 0.41–1.08) favoured nerandomilast but was not statistically significant (underpowered) [2]. The Petnak 2021 meta-analysis (n=12,956) pooled antifibrotic all-cause mortality RR 0.55 (95% CI 0.39–0.78) [5].〚/NEW〛 〚UP LLM intended a mortality MA but cited the wrong PMIDs → Anchor Petnak 2021 MA (n=12,956)〛\n- **Pirfenidone:** In the 52‑week ASCEND trial, pirfenidone reduced FVC decline by 193 mL (95% CI 83–303; GRADE **high** for FVC) [King TE et al., NEJM 2014; PMID 24836312]. All‑cause mortality HR 0.55 (95% CI 0.31–0.97) in pooled analysis 〚DEL〛[Noble PW et al., Eur Respir J 2016; PMID 26886654].〚/DEL〛 〚NEW〛[5]〚/NEW〛\n- **Nintedanib:** In the INPULSIS trials, nintedanib slowed annual FVC decline by 125.2 mL/year (95% CI 77.7–172.8; GRADE **high**) [Richeldi L et al., NEJM 2014; PMID 24836310]. Mortality reduction was not individually significant (HR 0.70, 95% CI 0.47–1.03) 〚DEL〛[Rochwerg B et al., Ann Intern Med 2017; PMID 28456699].〚/DEL〛 〚NEW〛[5]〚/NEW〛 〚NOTE 此处原引用指向一篇 FFR 心血管事件论文，已换成 KB 里的拗纵维化死亡率 meta 分析〛\n\n**Overall confidence: low** — nerandomilast lacks phase 3 data on sustained FVC decline and mortality; nerandomilast is investigational, with 〚DEL〛phase 3 FIBRONEER‑IPF ongoing.〚/DEL〛〚NEW〛phase 3 FIBRONEER-IPF having read out positive in 2025 [2]; a network meta-analysis (n=16,525) ranks nerandomilast 18 mg joint-best for FVC [4].〚/NEW〛",
+    "b_clean": "Nerandomilast (BI 1015550) is an oral preferential PDE4B inhibitor. Its pivotal phase 2 trial (N=147 IPF patients, ~60% on background pirfenidone or nintedanib) evaluated 12‑week FVC change.\n- **FVC decline (12 weeks):** Least‑squares mean change in FVC was –5.6 mL with nerandomilast 9 mg BID and –79.7 mL with placebo (placebo‑adjusted difference 74.1 mL, 95% CI 27.4–120.8; P=0.002) [pivotal trial: Richeldi L et al., NEJM 2022; PMID 35569036]. The 18 mg BID dose showed a similar difference of 81.3 mL (95% CI 33.7–129.0). The phase 3 FIBRONEER-IPF trial (N=1177) read out positive: nerandomilast 18 mg improved 52-week FVC by 68.8 mL (95% CI 30.3–107.4) [2]; this meets the Maher 2024 minimal clinically important difference (MID) threshold of ≥50 mL/year [3]. FVC is an FDA-validated surrogate, not a patient-important outcome (POI).\n- **Mortality:** In FIBRONEER-IPF, all-cause mortality HR 0.66 (95% CI 0.41–1.08) favoured nerandomilast but was not statistically significant (underpowered) [2]. The Petnak 2021 meta-analysis (n=12,956) pooled antifibrotic all-cause mortality RR 0.55 (95% CI 0.39–0.78) [5]. [Upgrade: LLM intended a mortality MA but cited the wrong PMIDs → Anchor Petnak 2021 MA (n=12,956)]\n- **Pirfenidone:** In the 52‑week ASCEND trial, pirfenidone reduced FVC decline by 193 mL (95% CI 83–303; GRADE **high** for FVC) [King TE et al., NEJM 2014; PMID 24836312]. All‑cause mortality HR 0.55 (95% CI 0.31–0.97) in pooled analysis [5]\n- **Nintedanib:** In the INPULSIS trials, nintedanib slowed annual FVC decline by 125.2 mL/year (95% CI 77.7–172.8; GRADE **high**) [Richeldi L et al., NEJM 2014; PMID 24836310]. Mortality reduction was not individually significant (HR 0.70, 95% CI 0.47–1.03) [5] (此处原引用指向一篇 FFR 心血管事件论文，已换成 KB 里的拗纵维化死亡率 meta 分析)\n\n**Overall confidence: low** — nerandomilast lacks phase 3 data on sustained FVC decline and mortality; nerandomilast is investigational, with phase 3 FIBRONEER-IPF having read out positive in 2025 [2]; a network meta-analysis (n=16,525) ranks nerandomilast 18 mg joint-best for FVC [4].",
+    "references": [
+      {
+        "n": 1,
+        "vancouver": "Richeldi L, Azuma A, Cottin V, et al. Trial of a Preferential Phosphodiesterase 4B Inhibitor for Idiopathic Pulmonary Fibrosis. N Engl J Med. 2022;386(23):2178-2187.",
+        "pmid": "35569036",
+        "source": "kb",
+        "evidence_id": "EV_f3af05c48a"
+      },
+      {
+        "n": 2,
+        "vancouver": "Richeldi L, et al. Nerandomilast in Patients with Idiopathic Pulmonary Fibrosis (FIBRONEER-IPF). N Engl J Med. 2025;392(21):2008-2018.",
+        "pmid": "40402571",
+        "source": "kb",
+        "evidence_id": "EV_6b1c90ddfe"
+      },
+      {
+        "n": 3,
+        "vancouver": "Maher TM, et al. Minimal clinically important difference in forced vital capacity decline in idiopathic pulmonary fibrosis. Eur Respir J. 2024;63(4):2301121.",
+        "pmid": null,
+        "source": "kb",
+        "evidence_id": "EV_2d7e45a110"
+      },
+      {
+        "n": 4,
+        "vancouver": "Yin Y, et al. Comparative efficacy of antifibrotic drugs for idiopathic pulmonary fibrosis: a network meta-analysis. Front Pharmacol. 2026;17:1418088.",
+        "pmid": "41808863",
+        "source": "kb",
+        "evidence_id": "EV_9a0b11c7e2"
+      },
+      {
+        "n": 5,
+        "vancouver": "Petnak T, Lertjitbanjong P, Thongprayoon C, Moua T. Impact of Antifibrotic Therapy on Mortality and Acute Exacerbation in Idiopathic Pulmonary Fibrosis: A Systematic Review and Meta-Analysis. Chest. 2021;160(5):1751-1763.",
+        "pmid": "34090872",
+        "source": "kb",
+        "evidence_id": "EV_51cc8d3b74"
+      },
+      {
+        "n": 6,
+        "vancouver": "King TE Jr, Bradford WZ, Castro-Bernardini S, et al. A phase 3 trial of pirfenidone in patients with idiopathic pulmonary fibrosis (ASCEND). N Engl J Med. 2014;370(22):2083-2092.",
+        "pmid": "24836312",
+        "source": "llm_verified",
+        "evidence_id": null
+      }
+    ],
+    "cards": [
+      {
+        "tag": "时效 · STALE",
+        "severity": "moderate",
+        "said": "Says 'phase 3 FIBRONEER-IPF is ongoing / lacks phase-3 data', self-rated overall confidence low.",
+        "verified": "FIBRONEER-IPF (phase 3, N=1177) read out positive in 2025: 18 mg improved 52-week FVC by 68.8 mL (95% CI 30.3-107.4); a network meta-analysis (n=16,525) ranks it joint-best for FVC.",
+        "why": "Its knowledge stops at the phase-2 stage, so it treats a completed, positive phase-3 trial as 'still ongoing' and under-rates the evidence."
+      },
+      {
+        "tag": "引用张冠李戴 · WRONG PAPER",
+        "severity": "substantive",
+        "said": "Cites 'Noble PW et al., Eur Respir J 2016; PMID 26886654' for pooled pirfenidone mortality and 'Rochwerg B et al., Ann Intern Med 2017; PMID 28456699' for a nintedanib mortality meta-analysis.",
+        "verified": "PMID 26886654 is a hypoxia-marker prognostic paper (Zheng, Medicine 2016). PMID 28456699 is an FFR cardiovascular-events paper (Li, JACC Cardiovasc Interv 2017). Anchor substitutes the Petnak 2021 antifibrotic mortality meta-analysis (PMID 34090872).",
+        "why": "Both comparator-drug mortality citations point at completely unrelated papers, so the mortality claim had no traceable source at all."
+      },
+      {
+        "tag": "引用正确 · CONFIRMED 3/5",
+        "severity": "confirmed",
+        "said": "Cites PMID 35569036 (nerandomilast phase 2), PMID 24836312 (ASCEND) and PMID 24836310 (INPULSIS).",
+        "verified": "All three check out on NCBI esummary: right paper, right year, on topic. Anchor keeps them unchanged.",
+        "why": "Anchor does not reject a citation just because the answer came from an LLM; three of five were right and are confirmed as such."
+      }
+    ],
+    "citation_checks": [
+      {
+        "cit": "PMID 35569036",
+        "pmid": "35569036",
+        "claimed": "nerandomilast phase-2 pivotal trial (Richeldi, NEJM 2022)",
+        "verdict": "verified",
+        "verdict_text": "✓ 核验正确 / verified",
+        "actual": null
+      },
+      {
+        "cit": "PMID 24836312",
+        "pmid": "24836312",
+        "claimed": "ASCEND pirfenidone phase 3 (King, NEJM 2014)",
+        "verdict": "verified",
+        "verdict_text": "✓ 核验正确 / verified",
+        "actual": null
+      },
+      {
+        "cit": "PMID 24836310",
+        "pmid": "24836310",
+        "claimed": "INPULSIS nintedanib trials (Richeldi, NEJM 2014)",
+        "verdict": "verified",
+        "verdict_text": "✓ 核验正确 / verified",
+        "actual": null
+      },
+      {
+        "cit": "PMID 26886654",
+        "pmid": "26886654",
+        "claimed": "Noble 2016 pooled pirfenidone mortality (Eur Respir J)",
+        "verdict": "wrong_paper",
+        "verdict_text": "✗ 张冠李戴 / wrong paper",
+        "actual": "Zheng et al. A hypoxia-marker prognostic study. Medicine (Baltimore). 2016 — unrelated to IPF."
+      },
+      {
+        "cit": "PMID 28456699",
+        "pmid": "28456699",
+        "claimed": "Rochwerg 2017 nintedanib mortality meta-analysis (Ann Intern Med)",
+        "verdict": "wrong_paper",
+        "verdict_text": "✗ 张冠李戴 / wrong paper",
+        "actual": "Li et al. Fractional flow reserve and cardiovascular events. JACC Cardiovasc Interv. 2017 — unrelated to IPF."
+      },
+      {
+        "cit": "Maher 2024 MID threshold",
+        "pmid": null,
+        "claimed": "not cited by the model; Anchor added the MID source",
+        "verdict": "honest_omission",
+        "verdict_text": "理论阈值由 Anchor 补齐 / filled by Anchor",
+        "actual": "Maher TM, et al. Eur Respir J. 2024;63(4):2301121 — no PMID in the KB row."
+      }
+    ],
+    "key_takeaways": [
+      "Currency: a positive 2025 phase-3 trial was reported as 'ongoing'.",
+      "PMID correction: 2 of 5 citations point at unrelated papers.",
+      "Confidence recalibration: overall confidence low → moderate for FVC."
+    ],
+    "outcome_comparisons": [],
+    "evidence": [
+      {
+        "evidence_id": "EV_f3af05c48a",
+        "title": "Nerandomilast phase 2 in IPF",
+        "pmid": "35569036",
+        "year": 2022,
+        "design": "RCT"
+      },
+      {
+        "evidence_id": "EV_6b1c90ddfe",
+        "title": "FIBRONEER-IPF phase 3",
+        "pmid": "40402571",
+        "year": 2025,
+        "design": "RCT"
+      },
+      {
+        "evidence_id": "EV_51cc8d3b74",
+        "title": "Antifibrotic mortality meta-analysis",
+        "pmid": "34090872",
+        "year": 2021,
+        "design": "SR/MA"
+      }
+    ],
+    "validation": {
+      "minimal_diff_ok": true,
+      "pmid_whitelist_ok": true,
+      "issues": []
+    },
+    "latency_ms": {
+      "retrieval": 1870,
+      "ncbi": 2240,
+      "llm": 36510,
+      "total": 41820
+    }
+  }
+}

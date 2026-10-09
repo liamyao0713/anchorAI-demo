@@ -1,0 +1,440 @@
+/* ───────────────────────────────────────────────────────────── anchor_review 三栏
+ *
+ * 历史 demo v39/v40 的 Ⓐ|Ⓑ|Ⓒ 三栏。数值与色值照搬：
+ *   栏容器 / 栏头 / 徽章 / 滑块 / 等高内滚  ← m2-studio/scripts/build_demo_v7.py 的 V7_CSS
+ *   diff-del / diff-add / diff-note / diff-up / diff-hl
+ *   card / c-tag / c-row / ctab / vpill / refmark / reflist / ref-num / ref-tier
+ *                                          ← m2-studio/scripts/build_demo_v6.py 的 B6.CSS
+ *
+ * 全部规则都压在 #aw-anchor-review 底下。`.card`、`.ctab`、`.diff-del` 这些类名同时
+ * 存在于下方归档的案例画廊（cases.css，也是全部限定在 #anchor-cases 里），不限定作用域
+ * 就会互相串味。
+ */
+
+#aw-anchor-review {
+  order: 2;
+  width: 100%;
+  max-width: 1640px;
+  margin: 0 auto;
+  /* 产品条是 sticky 的，跳到这一段时要给它让出位置，否则栏头正好被盖住。
+     和页面上其它可滚动目标用同一个数。 */
+  scroll-margin-top: 86px;
+}
+
+#aw-anchor-review .v7-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+  margin: 14px 0;
+}
+
+/* 历史断点：窄过 1100px 就退成单列，三栏各自取自然高度（等高内滚也随之关掉）。 */
+@media (max-width: 1100px) {
+  #aw-anchor-review .v7-cols { grid-template-columns: 1fr; }
+}
+
+#aw-anchor-review .v7-col {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+}
+
+#aw-anchor-review .v7-col-h {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  letter-spacing: .01em;
+  flex-wrap: nowrap;
+}
+
+#aw-anchor-review .v7-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .25);
+  font-size: 13px;
+}
+
+#aw-anchor-review .v7-h-a { background: linear-gradient(90deg, #b91c1c, #dc2626); }
+#aw-anchor-review .v7-h-b { background: linear-gradient(90deg, #15803d, #16a34a); }
+#aw-anchor-review .v7-h-c { background: linear-gradient(90deg, #6d28d9, #7c3aed); }
+#aw-anchor-review .v7-col-a { border-color: #fecaca; }
+#aw-anchor-review .v7-col-b { border-color: #bbf7d0; }
+#aw-anchor-review .v7-col-c { border-color: #ddd6fe; }
+
+#aw-anchor-review .v7-h-title {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+#aw-anchor-review .v7-col-body {
+  padding: 12px 13px;
+  font-size: 13.5px;
+  line-height: 1.62;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+#aw-anchor-review .v7-col-body::-webkit-scrollbar { width: 8px; }
+#aw-anchor-review .v7-col-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+#aw-anchor-review .v7-col-body::-webkit-scrollbar-track { background: transparent; }
+
+#aw-anchor-review .v7-note {
+  font-size: 11.5px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-radius: 7px;
+  padding: 6px 8px;
+  margin-bottom: 9px;
+}
+
+#aw-anchor-review .v7-body { font-size: 13.5px; line-height: 1.64; }
+
+/* 历史 .v7-ans 里的 <mark> 没有任何 CSS 规则，靠的是浏览器默认黄 —— 这是规格里点名
+ * 的缺口。补上色板里的 highlight #FEF08A，这样「黄色高亮」在所有浏览器里都一样。 */
+#aw-anchor-review .v7-ans mark {
+  background: #FEF08A;
+  color: #713F12;
+  padding: 1px 2px;
+  border-radius: 3px;
+}
+
+#aw-anchor-review .v7-sub-h {
+  font-weight: 800;
+  font-size: 12px;
+  margin: 13px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #eee;
+  color: #374151;
+}
+
+#aw-anchor-review .v7-sub-audit { color: #6d28d9; }
+#aw-anchor-review .v7-col-c .card { margin: 8px 0; }
+#aw-anchor-review .v7-col-c .ctab { font-size: 11.5px; }
+
+#aw-anchor-review .v7-audit-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #374151;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  padding: 9px 10px;
+}
+
+/* Ⓑ 栏头：左边标题，右边「修订 Track ⇄ 净版 Clean」滑块。 */
+#aw-anchor-review .v7-slide-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+#aw-anchor-review .v7-slab-l,
+#aw-anchor-review .v7-slab-r { color: rgba(255, 255, 255, .9); white-space: nowrap; }
+
+#aw-anchor-review .v7-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 21px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+#aw-anchor-review .v7-switch input { opacity: 0; width: 0; height: 0; }
+
+#aw-anchor-review .v7-knob {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, .32);
+  border: 1.5px solid rgba(255, 255, 255, .75);
+  border-radius: 21px;
+  transition: .25s;
+}
+
+#aw-anchor-review .v7-knob::before {
+  content: '';
+  position: absolute;
+  height: 15px;
+  width: 15px;
+  left: 2.5px;
+  top: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: .25s;
+}
+
+#aw-anchor-review .v7-switch input:checked + .v7-knob { background: rgba(255, 255, 255, .5); }
+#aw-anchor-review .v7-switch input:checked + .v7-knob::before { transform: translateX(18px); }
+#aw-anchor-review .v7-switch input:focus-visible + .v7-knob { outline: 2px solid #fff; outline-offset: 2px; }
+
+#aw-anchor-review .v7-slab-r { opacity: .5; }
+#aw-anchor-review .v7-col-b.show-clean .v7-slab-l { opacity: .5; }
+#aw-anchor-review .v7-col-b.show-clean .v7-slab-r { opacity: 1; }
+
+#aw-anchor-review .v7-clean-view { display: none; }
+#aw-anchor-review .v7-col-b.show-clean .v7-track-view { display: none; }
+#aw-anchor-review .v7-col-b.show-clean .v7-clean-view { display: block; }
+#aw-anchor-review .v7-track-view,
+#aw-anchor-review .v7-clean-view { font-size: 13.5px; line-height: 1.66; }
+
+/* 校正未完成：Ⓑ 栏正文上方的说明条。历史没有这个状态（页面是预渲染的，
+ * 不存在「这次没跑完」），所以沿用色板里 kb/警示 那一组。 */
+#aw-anchor-review .v7-incomplete {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  border-left: 4px solid #D97706;
+  border-radius: 7px;
+  padding: 8px 11px;
+  margin-bottom: 9px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #78350F;
+}
+
+#aw-anchor-review .v7-incomplete b { color: #7C2D12; }
+
+/* ── Word 修订式行内标记（B6.CSS） ───────────────────────────────────────── */
+
+#aw-anchor-review .diff-add {
+  background: #DCFCE7;
+  border-bottom: 2px solid #16A34A;
+  padding: 1px 3px;
+  border-radius: 3px;
+  cursor: help;
+  font-style: normal;
+  text-decoration: none;
+}
+
+#aw-anchor-review .diff-add::before {
+  content: '＋';
+  color: #16A34A;
+  font-weight: 800;
+  font-size: 10px;
+  margin-right: 2px;
+}
+
+#aw-anchor-review .diff-del {
+  background: #FEE2E2;
+  color: #7F1D1D;
+  text-decoration: line-through;
+  text-decoration-color: #DC2626;
+  text-decoration-thickness: 2px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  cursor: help;
+}
+
+#aw-anchor-review .diff-del::before {
+  content: '⌫';
+  color: #DC2626;
+  font-weight: 800;
+  font-size: 10px;
+  margin-right: 2px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+#aw-anchor-review .diff-note {
+  background: #FEF3C7;
+  border-left: 3px solid #2563EB;
+  padding: 2px 6px 2px 4px;
+  margin: 0 2px;
+  border-radius: 3px;
+  font-size: .95em;
+  color: #1E40AF;
+  cursor: help;
+  position: relative;
+}
+
+#aw-anchor-review .diff-note::before {
+  content: "✋ Anchor: ";
+  font-weight: 600;
+  color: #2563EB;
+  font-size: .85em;
+}
+
+#aw-anchor-review .diff-up {
+  background: #DBEAFE;
+  color: #1E40AF;
+  padding: 1px 5px;
+  margin: 0 2px;
+  border-radius: 3px;
+  font-size: .85em;
+  cursor: help;
+  font-weight: 600;
+}
+
+#aw-anchor-review .diff-up::before { content: "⬆️ "; }
+
+#aw-anchor-review .diff-hl {
+  background: #FEF08A;
+  padding: 1px 4px;
+  margin: 0 2px;
+  border-radius: 3px;
+  font-weight: 600;
+  color: #713F12;
+}
+
+#aw-anchor-review .diff-hl::before { content: "⭐ "; }
+
+/* ── 引用上标与参考文献（B6.CSS） ───────────────────────────────────────── */
+
+#aw-anchor-review .refmark { font-size: 10px; font-weight: 700; margin: 0 1px; }
+
+#aw-anchor-review .refmark a {
+  color: #1D4ED8;
+  text-decoration: none;
+  background: #DBEAFE;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+#aw-anchor-review .refmark a:hover { background: #BFDBFE; }
+
+#aw-anchor-review .refs-block {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 7px;
+  padding: 0;
+  margin-top: 9px;
+}
+
+#aw-anchor-review details.refs-collapse > summary {
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: #0F172A;
+  user-select: none;
+  border-radius: 7px;
+  transition: background .12s;
+}
+
+#aw-anchor-review details.refs-collapse > summary::-webkit-details-marker { display: none; }
+
+#aw-anchor-review details.refs-collapse > summary::before {
+  content: '▶ ';
+  display: inline-block;
+  font-size: 10px;
+  margin-right: 5px;
+  color: #64748B;
+  transition: transform .15s;
+}
+
+#aw-anchor-review details.refs-collapse[open] > summary::before { transform: rotate(90deg); }
+#aw-anchor-review details.refs-collapse > summary:hover { background: #F1F5F9; }
+
+#aw-anchor-review details.refs-collapse[open] > summary {
+  border-bottom: 1px solid #E2E8F0;
+  border-radius: 7px 7px 0 0;
+  margin-bottom: 6px;
+}
+
+#aw-anchor-review details.refs-collapse > ol.reflist { padding: 0 12px 9px 12px; }
+
+#aw-anchor-review .reflist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+#aw-anchor-review .reflist li {
+  padding: 5px 0;
+  border-bottom: 1px dashed #E2E8F0;
+  line-height: 1.55;
+  scroll-margin-top: 20px;
+}
+
+#aw-anchor-review .reflist li:last-child { border-bottom: none; }
+#aw-anchor-review .reflist li:target { background: #FEF3C7; border-radius: 5px; padding: 5px 8px; }
+
+#aw-anchor-review .ref-num {
+  display: inline-block;
+  background: #DBEAFE;
+  color: #1D4ED8;
+  font-weight: 700;
+  font-size: 11px;
+  border-radius: 5px;
+  padding: 1px 7px;
+  margin-right: 6px;
+  min-width: 24px;
+  text-align: center;
+}
+
+#aw-anchor-review .ref-tier { color: #64748B; font-size: 11px; font-style: italic; white-space: nowrap; }
+#aw-anchor-review .reflist a { color: #1D4ED8; font-family: ui-monospace, monospace; font-size: 11.5px; }
+
+/* ── Ⓒ 栏：校正卡与引用核验表（B6.CSS） ─────────────────────────────────── */
+
+#aw-anchor-review .card {
+  background: #fff;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid #B91C1C;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 9px;
+  position: relative;
+}
+
+#aw-anchor-review .c-tag {
+  position: absolute;
+  top: -9px;
+  left: 12px;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 2px 9px;
+}
+
+#aw-anchor-review .c-row { display: flex; gap: 8px; margin-top: 8px; font-size: 12.8px; }
+#aw-anchor-review .c-row:first-of-type { margin-top: 9px; }
+#aw-anchor-review .c-ico { flex: none; }
+
+#aw-anchor-review .clean {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #166534;
+}
+
+#aw-anchor-review .ctab { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+#aw-anchor-review .ctab td { border-top: 1px solid #F1F5F9; padding: 6px 7px; vertical-align: top; }
+#aw-anchor-review .ct-cit { font-family: ui-monospace, monospace; white-space: nowrap; }
+#aw-anchor-review .ctab a { color: #1D4ED8; }
+
+#aw-anchor-review .vpill {
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}

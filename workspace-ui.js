@@ -8,6 +8,8 @@
   const State = window.AnchorWorkspaceState;
   const Exporter = window.AnchorWorkspaceExport;
   if (!Api || !Adapter || !State || !Exporter) return;
+  // 三栏渲染器是**可选**依赖：它没加载上，页面就一直走原有的 A/B/C 面板，而不是整页罢工。
+  const Review = window.AnchorReview || null;
 
   const PANEL_KEYS = ["raw", "corrected", "audit"];
   const AUDIT_TABS = ["corrections", "citations", "run-details"];
@@ -332,6 +334,29 @@
       runUsableEvidence: "Usable evidence count",
       warningsNotes: "Warnings / notes",
       viewRawResponse: "View raw response",
+      // anchor_review 三栏的固定文案。两套取自历史 v39/v40（build_demo_v7.py 里的 bi() 对照）。
+      reviewSectionAria: "Anchor review columns",
+      reviewTitleA: "Uncorrected · {model}",
+      reviewTitleAUnknownModel: "Uncorrected",
+      reviewNoteA: "LLM verbatim. Yellow highlight = claims Anchor flagged after verification (see Ⓒ).",
+      reviewTitleB: "Anchor-corrected · KB-grounded",
+      reviewTitleC: "Diff audit · correction axes",
+      reviewTrack: "Track",
+      reviewClean: "Clean",
+      reviewSwitchAria: "Switch between the tracked-changes view and the clean view",
+      reviewCardsHeading: "🔴→✅→💡 Correction cards (said → verified → why)",
+      reviewCitationsHeading: "🔎 Citation check vs PubMed",
+      reviewCardSaid: "Model said: ",
+      reviewCardVerified: "Verified: ",
+      reviewCardWhy: "Why: ",
+      reviewNoCards: "Anchor verified: nothing to correct; citations checked vs PubMed.",
+      reviewCardsUnavailable: "The correction did not complete, so there are no correction cards. The citation check below is computed by Anchor and still applies.",
+      reviewNoCitationChecks: "This answer carries no citation to check.",
+      reviewReferences: "Corrected-version references ({count} · click)",
+      reviewIncomplete: "Correction not completed",
+      reviewIncompleteNoReason: "The server did not state a reason.",
+      reviewSourceKb: "KB-grounded",
+      reviewSourceVerified: "literature-verified",
     },
     zh: {
       documentTitle: "AnchorAI | 证据核验工作台",
@@ -623,6 +648,28 @@
       runUsableEvidence: "可用证据数",
       warningsNotes: "警告 / 备注",
       viewRawResponse: "查看原始响应",
+      reviewSectionAria: "Anchor 校正三栏",
+      reviewTitleA: "未矫正 · {model} 原话",
+      reviewTitleAUnknownModel: "未矫正 · 原话",
+      reviewNoteA: "LLM 逐字原文。黄色高亮 = Anchor 在 Ⓒ 栏核验后标出的可疑主张。",
+      reviewTitleB: "Anchor 校正版 · KB 锚定",
+      reviewTitleC: "对比审计 · 矫正轴",
+      reviewTrack: "修订",
+      reviewClean: "净版",
+      reviewSwitchAria: "在修订视图与净版之间切换",
+      reviewCardsHeading: "🔴→✅→💡 校正卡（模型说 → 核验真相 → 为什么）",
+      reviewCitationsHeading: "🔎 引用核验 · 逐条对照 PubMed",
+      reviewCardSaid: "模型说：",
+      reviewCardVerified: "核验真相：",
+      reviewCardWhy: "为什么：",
+      reviewNoCards: "Anchor 核验：本答案无需校正，引用经 PubMed 核验。",
+      reviewCardsUnavailable: "校正未完成，因此没有校正卡。下方的引用核验由 Anchor 程序算出，仍然有效。",
+      reviewNoCitationChecks: "本答案没有可核验的引用。",
+      reviewReferences: "校正版引用（{count} 条 · 点击展开）",
+      reviewIncomplete: "校正未完成",
+      reviewIncompleteNoReason: "后端未给出原因。",
+      reviewSourceKb: "KB 锚定",
+      reviewSourceVerified: "文献核验",
     },
   };
 
@@ -646,10 +693,16 @@
     let citationFilter = "all";
     let citationSearch = "";
     const pasteHome = { parent: null, next: null };
+    // 和 pasteHome 同理，这两个也必须在这里声明：initWorkspace 顶部就会调用
+    // rememberPanelToolsHome()/renderAll()，而 let/const 不像函数声明那样提升。
+    const panelToolsHome = { parent: null, next: null };
+    let reviewActive = false;
 
     refs.apiBaseInput.value = apiBase;
     // 必须在任何一次 setPasteMode 之前记下粘贴区的原位，否则关闭粘贴时它搬不回去。
     rememberPasteHome();
+    // 同理：三栏模式会把 A 框栏头那排控件搬进提问卡片，原位要先记下来。
+    rememberPanelToolsHome();
     initUiLanguage();
     bindEvents();
     renderAll();
@@ -744,6 +797,17 @@
           renderCorrectedPanel();
         });
       }
+
+      // 历史 v7Slide：滑块只切 Ⓑ 栏的 track/clean，不碰工作台原来的 clean/tracked 状态——
+      // 两套视图各管自己的那一份，混用会让其中一个的按钮和内容对不上。
+      refs.reviewSwitch.addEventListener("change", applyReviewView);
+
+      // 历史是 resize 防抖 150ms；等高是按视口高算的，窗口一变就得重算。
+      let resizeTimer = null;
+      window.addEventListener("resize", () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(equalizeReviewColumns, 150);
+      });
 
       refs.panelTabs.forEach((button) => {
         button.addEventListener("click", () => {
@@ -1051,6 +1115,7 @@
       renderCorrectedPanel();
       renderAuditTabs();
       renderResponsivePanels();
+      renderAnchorReview();
       // Re-apply after every render: the panels rebuild their nodes, so the selected
       // claim would otherwise lose its marking and the position readout would go stale.
       applyClaimSelection();
@@ -1140,7 +1205,8 @@
 
     function movePasteInto(on) {
       if (!pasteHome.parent) return;
-      if (on) {
+      // 三栏模式下 A 框是藏着的，把输入框搬进去等于把它藏起来：这种情况留在提问卡片里。
+      if (on && !reviewActive) {
         // 放在「尚未生成原始回答」那块之前：A 框里原始答案本来就出现在这个位置。
         refs.rawText.parentNode.insertBefore(refs.pasteWrap, refs.rawText);
       } else if (refs.pasteWrap.parentNode !== pasteHome.parent) {
@@ -1942,6 +2008,269 @@
       });
     }
 
+    // ───────────────────────────────────────────────── anchor_review 的历史三栏
+    //
+    // 带 `anchor_review` 的响应用历史 v39/v40 的 Ⓐ|Ⓑ|Ⓒ 显示，顶替工作台原来那三栏。
+    // 顶替而不是并排：同一次运行的 Ⓐ/Ⓑ/Ⓒ 只该有一份，两套摆在一起会让人以为页面上
+    // 是两次不同的核验。不带这个字段的旧响应完全走原有渲染。
+
+    function rememberPanelToolsHome() {
+      panelToolsHome.parent = refs.reviewPanelTools.parentNode;
+      panelToolsHome.next = refs.reviewPanelTools.nextSibling;
+    }
+
+    // 「基座模型」下拉和「粘贴答案」按钮住在 A 框栏头里，但它们是给**下一次**运行用的。
+    // 三栏模式下 A 框整个藏起来，所以把这一排搬到提问卡片，而不是跟着一起消失——
+    // 否则换模型或改贴答案都得先刷新页面。
+    function movePanelTools(intoQuestionCard) {
+      if (!panelToolsHome.parent) return;
+      if (intoQuestionCard) {
+        if (refs.reviewPanelTools.parentNode !== refs.pasteRow) {
+          refs.pasteRow.appendChild(refs.reviewPanelTools);
+        }
+      } else if (refs.reviewPanelTools.parentNode !== panelToolsHome.parent) {
+        panelToolsHome.parent.insertBefore(refs.reviewPanelTools, panelToolsHome.next);
+      }
+    }
+
+    function currentReview() {
+      if (!Review || !state.response) return null;
+      return Review.normalizeReview(state.response.anchor_review);
+    }
+
+    function setReviewActive(on) {
+      if (reviewActive === on) return;
+      reviewActive = on;
+      refs.reviewSection.hidden = !on;
+      refs.workbench.hidden = on;
+      movePanelTools(on);
+      // 粘贴区的落点取决于 A 框在不在：在三栏模式下它得待在提问卡片里。
+      movePasteInto(pasteModeOn());
+    }
+
+    // 段落结构 → DOM。anchor-review.js 不产出 HTML 字符串，所以这里全部走
+    // createElement / textContent：正文是模型写的，不该有任何一步把它当标记解析。
+    const REVIEW_SEGMENT_TAG = {
+      bold: "b", mark: "mark", del: "del", ins: "ins", note: "span", up: "span", hl: "span",
+    };
+    // class 与 title 照搬历史 build_demo_v6.py 的 `_render_marks_in_prose`。
+    const REVIEW_SEGMENT_CLASS = {
+      del: "diff-del", ins: "diff-add", note: "diff-note", up: "diff-up", hl: "diff-hl",
+    };
+    const REVIEW_SEGMENT_TITLE = {
+      del: "Anchor deleted (LLM original wrong-text)",
+      ins: "Anchor added / replacement (green)",
+      note: "Anchor note",
+      up: "Evidence tier upgrade",
+      hl: "Key data",
+    };
+
+    function appendReviewSegments(parent, segments, idPrefix) {
+      (segments || []).forEach((segment) => {
+        if (segment.kind === "br") {
+          parent.appendChild(create("br"));
+          return;
+        }
+        if (segment.kind === "ref") {
+          const sup = create("sup", { className: "refmark" });
+          const link = create("a", { text: `[${segment.n}]` });
+          link.setAttribute("href", `#${idPrefix}-${segment.n}`);
+          sup.appendChild(link);
+          parent.appendChild(sup);
+          return;
+        }
+        if (segment.kind === "text") {
+          appendText(parent, segment.text);
+          return;
+        }
+        const tagName = REVIEW_SEGMENT_TAG[segment.kind];
+        if (!tagName) {
+          // 认不出的段落类型照常把文字显示出来，但不给它任何样式：丢掉正文比画错颜色更糟。
+          appendText(parent, segment.text || "");
+          appendReviewSegments(parent, segment.children, idPrefix);
+          return;
+        }
+        const element = create(tagName, {
+          className: REVIEW_SEGMENT_CLASS[segment.kind],
+          title: REVIEW_SEGMENT_TITLE[segment.kind],
+        });
+        if (segment.text !== undefined) appendText(element, segment.text);
+        appendReviewSegments(element, segment.children, idPrefix);
+        parent.appendChild(element);
+      });
+    }
+
+    function renderReviewProse(container, segments, idPrefix) {
+      replaceChildren(container);
+      appendReviewSegments(container, segments, idPrefix);
+    }
+
+    function renderReviewCards(cards, completed) {
+      replaceChildren(refs.reviewCards);
+      if (!cards.length) {
+        // 校正没跑完时没有卡片，不等于「无需校正」—— 那句话会把一次失败说成一次通过。
+        if (!completed) {
+          refs.reviewCards.appendChild(create("div", {
+            className: "v7-audit-note",
+            text: t("reviewCardsUnavailable"),
+          }));
+          return;
+        }
+        refs.reviewCards.appendChild(create("div", { className: "clean", text: `✓ ${t("reviewNoCards")}` }));
+        return;
+      }
+      cards.forEach((card) => {
+        const color = Review.severityColor(card.severity);
+        const element = create("div", { className: "card" });
+        // severity 的三色是历史的语义编码（实质错误红 / 中度琥珀 / 确认灰），而且它是
+        // 数据，不是样式表里的固定搭配，所以照历史写成 inline。
+        element.style.borderLeftColor = color;
+        const tag = create("div", { className: "c-tag", text: card.tag });
+        tag.style.background = color;
+        element.appendChild(tag);
+        [["🔴", t("reviewCardSaid"), card.said],
+         ["✅", t("reviewCardVerified"), card.verified],
+         ["💡", t("reviewCardWhy"), card.why]].forEach(([icon, label, body]) => {
+          const row = create("div", { className: "c-row" });
+          row.appendChild(create("span", { className: "c-ico", text: icon }));
+          const cell = create("div");
+          cell.appendChild(create("b", { text: label }));
+          appendText(cell, body);
+          row.appendChild(cell);
+          element.appendChild(row);
+        });
+        refs.reviewCards.appendChild(element);
+      });
+    }
+
+    function renderReviewCitationChecks(rows) {
+      replaceChildren(refs.reviewCitations);
+      if (!rows.length) {
+        refs.reviewCitations.appendChild(create("div", {
+          className: "v7-audit-note",
+          text: t("reviewNoCitationChecks"),
+        }));
+        return;
+      }
+      const table = create("table", { className: "ctab" });
+      const body = create("tbody");
+      rows.forEach((row) => {
+        const tr = create("tr");
+        const cit = create("td", { className: "ct-cit" });
+        const citLabel = row.cit || (row.pmid ? `PMID ${row.pmid}` : "-");
+        const href = Review.pubmedHref(row.pmid);
+        if (href) {
+          cit.appendChild(safeLink(href, citLabel));
+        } else {
+          appendText(cit, citLabel);
+        }
+        tr.appendChild(cit);
+        tr.appendChild(create("td", { text: row.claimed }));
+        const verdict = create("td");
+        const pill = create("span", { className: "vpill", text: row.verdictText || row.verdict || "-" });
+        pill.style.background = Review.verdictColor(row.verdict);
+        verdict.appendChild(pill);
+        if (row.actual) appendText(verdict, ` ${row.actual}`);
+        tr.appendChild(verdict);
+        body.appendChild(tr);
+      });
+      table.appendChild(body);
+      refs.reviewCitations.appendChild(table);
+    }
+
+    function renderReviewReferences(references, idPrefix) {
+      replaceChildren(refs.reviewReferences);
+      refs.reviewReferences.hidden = !references.length;
+      if (!references.length) return;
+      refs.reviewReferences.appendChild(create("summary", {
+        className: "refs-h",
+        text: `📚 ${t("reviewReferences", { count: references.length })}`,
+      }));
+      const list = create("ol", { className: "reflist" });
+      const sourceLabels = { kb: t("reviewSourceKb"), llm_verified: t("reviewSourceVerified") };
+      references.forEach((ref) => {
+        const item = create("li");
+        // 正文里的引用上标就是链到这个 id 的；:target 让被点到的那一条高亮。
+        item.id = `${idPrefix}-${ref.n}`;
+        item.appendChild(create("span", { className: "ref-num", text: `[${ref.n}]` }));
+        appendText(item, ` ${ref.vancouver}`);
+        const href = Review.pubmedHref(ref.pmid);
+        if (href) {
+          appendText(item, " · ");
+          item.appendChild(safeLink(href, `PMID ${ref.pmid}`));
+        }
+        const label = sourceLabels[ref.source] || ref.source;
+        if (label) {
+          appendText(item, " · ");
+          item.appendChild(create("span", { className: "ref-tier", text: label }));
+        }
+        list.appendChild(item);
+      });
+      refs.reviewReferences.appendChild(list);
+    }
+
+    function renderAnchorReview() {
+      const review = currentReview();
+      setReviewActive(Boolean(review));
+      if (!review) return;
+
+      const idPrefix = `awv7-ref-${safeClass(state.response && state.response.query_id)}`;
+
+      // Ⓐ 栏点名的是**写出这段原话的**模型，也就是 raw_answer 里的那个。
+      // anchor_review.model 是 Anchor 的校正模型（合约里的 LLM_REVIEW_MODEL），
+      // 拿它当 Ⓐ 的标题，就等于说校正模型写了被校正的那段话。
+      const baseModel = state.response && state.response.raw_answer ? state.response.raw_answer.model : "";
+      refs.reviewTitleA.textContent = baseModel
+        ? t("reviewTitleA", { model: baseModel })
+        : t("reviewTitleAUnknownModel");
+      renderReviewProse(refs.reviewTextA, Review.parseAnswer(review.aText, review.aMarks), idPrefix);
+
+      // 校正未完成时 b_track/b_clean 就是 A 原文（照约定），所以两个视图照常渲染，
+      // 只在 Ⓑ 栏顶部说清这不是一份校正稿，以及为什么。
+      refs.reviewIncomplete.hidden = review.completed;
+      replaceChildren(refs.reviewIncomplete);
+      if (!review.completed) {
+        refs.reviewIncomplete.appendChild(create("b", { text: t("reviewIncomplete") }));
+        appendText(refs.reviewIncomplete, ` · ${Review.incompleteReason(review) || t("reviewIncompleteNoReason")}`);
+      }
+
+      renderReviewProse(refs.reviewTrackView, Review.parseTrack(review.bTrack, review.references), idPrefix);
+      renderReviewProse(refs.reviewCleanView, Review.parseClean(review.bClean, review.references), idPrefix);
+      renderReviewReferences(review.references, idPrefix);
+      renderReviewCards(review.cards, review.completed);
+      renderReviewCitationChecks(review.citationChecks);
+
+      applyReviewView();
+    }
+
+    function applyReviewView() {
+      refs.reviewColumnB.classList.toggle("show-clean", refs.reviewSwitch.checked);
+      // 修订版与净版长度不同，切过去就得重新对齐等高。
+      window.setTimeout(equalizeReviewColumns, 0);
+    }
+
+    // 历史 v7EqualizeCols：三栏统一对到**最短**那栏的高度，各自内部滚动，上限是
+    // 视口的 82%、下限 460px。窄过 1100px 时退成单列，这时让每栏取自然高度。
+    const REVIEW_MIN_HEIGHT = 460;
+    const REVIEW_VIEWPORT_SHARE = 0.82;
+
+    function equalizeReviewColumns() {
+      const bodies = refs.reviewColumnBodies;
+      if (!bodies.length) return;
+      bodies.forEach((body) => {
+        body.style.height = "";
+        body.style.overflowY = "";
+      });
+      if (!reviewActive || window.innerWidth <= 1100 || bodies.length < 2) return;
+      const shortest = bodies.reduce((min, body) => Math.min(min, body.scrollHeight), Infinity);
+      const cap = Math.round(window.innerHeight * REVIEW_VIEWPORT_SHARE);
+      const height = Math.max(REVIEW_MIN_HEIGHT, Math.min(shortest, cap));
+      bodies.forEach((body) => {
+        body.style.height = `${height}px`;
+        body.style.overflowY = "auto";
+      });
+    }
+
     function renderSettingsStatus() {
       replaceChildren(refs.settingsStatus);
       refs.settingsStatus.appendChild(create("p", {
@@ -2305,6 +2634,21 @@
       citationSearch: required(root, "#aw-citation-search"),
       citationsList: required(root, "#aw-citations-list"),
       runDetails: required(root, "#aw-run-details"),
+      workbench: required(root, ".aw-workbench"),
+      reviewSection: required(root, "#aw-anchor-review"),
+      reviewColumnB: required(root, "#awv7-col-b"),
+      reviewSwitch: required(root, "#awv7-switch"),
+      reviewTitleA: required(root, "#awv7-a-title"),
+      reviewTextA: required(root, "#awv7-a-text"),
+      reviewIncomplete: required(root, "#awv7-b-incomplete"),
+      reviewTrackView: required(root, "#awv7-b-track"),
+      reviewCleanView: required(root, "#awv7-b-clean"),
+      reviewReferences: required(root, "#awv7-b-refs"),
+      reviewCards: required(root, "#awv7-c-cards"),
+      reviewCitations: required(root, "#awv7-c-cites"),
+      reviewColumnBodies: Array.from(root.querySelectorAll("#aw-anchor-review .v7-col-body")),
+      reviewPanelTools: required(root, ".aw-panel-a .aw-panel-tools"),
+      pasteRow: required(root, ".aw-paste-row"),
       toast: required(root, "#aw-toast"),
       toastTimer: null,
     };
