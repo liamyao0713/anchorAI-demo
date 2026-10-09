@@ -763,6 +763,13 @@ assert.match(anchorReviewCss, /\.diff-hl::before \{ content: "⭐ "; \}/, "HL mu
 assert.match(anchorReviewCss, /\.v7-ans mark \{[\s\S]*background: #FEF08A/,
   "the Ⓐ column highlight must be styled rather than left to the browser default");
 
+// 引用核验表的三列由后端填，一句长 verdict_text 不能把表撑出栏外 —— 栏是
+// overflow:hidden 的，撑出去就是被切掉。历史那张表是预渲染的，不会遇到这件事。
+assert.match(anchorReviewCss, /\.ctab \{[\s\S]*table-layout: fixed/,
+  "the citation table must not let one long cell set the column widths");
+assert.doesNotMatch(anchorReviewCss, /\.vpill \{[\s\S]*white-space: nowrap/,
+  "a long verdict must wrap inside its pill rather than overflow the column");
+
 // 整份样式都压在 #aw-anchor-review 底下：.card / .ctab / .diff-del 这些类名同时存在于
 // 下方归档的案例画廊，不限定作用域就会互相串味。
 assert.doesNotMatch(anchorReviewCss, /^(?!.*#aw-anchor-review)[^@\n{}]+\{/m,

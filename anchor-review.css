@@ -425,16 +425,37 @@
   color: #166534;
 }
 
-#aw-anchor-review .ctab { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
-#aw-anchor-review .ctab td { border-top: 1px solid #F1F5F9; padding: 6px 7px; vertical-align: top; }
-#aw-anchor-review .ct-cit { font-family: ui-monospace, monospace; white-space: nowrap; }
+/* 与历史的两处分歧，都是为了把表格关在栏里。历史这张表是预渲染的，每格的字数
+   事先就知道；现在三列的内容由后端决定，一句长 verdict_text 就会把表撑出栏外，
+   右边直接被 overflow:hidden 切掉。
+   ① table-layout:fixed —— 列宽不再由最长的那格说了算；
+   ② .vpill 去掉 white-space:nowrap —— 短判定照样一行，长的换行而不是顶出去。 */
+#aw-anchor-review .ctab {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+#aw-anchor-review .ctab td {
+  border-top: 1px solid #F1F5F9;
+  padding: 6px 7px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+#aw-anchor-review .ct-cit { font-family: ui-monospace, monospace; width: 23%; }
 #aw-anchor-review .ctab a { color: #1D4ED8; }
 
 #aw-anchor-review .vpill {
+  display: inline-block;
+  max-width: 100%;
   color: #fff;
   font-size: 10.5px;
   font-weight: 700;
+  line-height: 1.45;
   border-radius: 8px;
   padding: 1px 7px;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }

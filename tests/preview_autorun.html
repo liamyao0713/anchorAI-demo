@@ -31,11 +31,15 @@ f.addEventListener("load", () => {
     box.value = question;
     box.dispatchEvent(new w.Event("input", { bubbles: true }));
     d.getElementById("aw-question-form").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
-    setTimeout(() => {
+    // 等三栏真的出现再滚过去：假 API 立刻返回，真后端要一两分钟，写死的延时两边都不对。
+    const section = d.getElementById("aw-anchor-review");
+    const deadline = Date.now() + 240000;
+    const settle = () => {
+      if (section.hidden && Date.now() < deadline) { setTimeout(settle, 400); return; }
       if (clean) { const s = d.getElementById("awv7-switch"); s.checked = true; s.dispatchEvent(new w.Event("change", { bubbles: true })); }
-      const section = d.getElementById("aw-anchor-review");
-      w.scrollTo(0, section.getBoundingClientRect().top + w.scrollY - 86);
-    }, 3000);
+      setTimeout(() => w.scrollTo(0, section.getBoundingClientRect().top + w.scrollY - 86), 300);
+    };
+    settle();
   }, 500);
 });
 f.src = `../index.html?api=${encodeURIComponent(api)}`;

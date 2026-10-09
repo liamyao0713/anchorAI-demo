@@ -8,6 +8,10 @@ const root = resolve(process.cwd());
 // docs/demo_v6_inputs 与 v40 页面。问题里带 "anchor review" 就返回它。
 const anchorReviewFixture = JSON.parse(
   readFileSync(resolve(root, "tests/fixtures/anchor_review_sample.json"), "utf8"));
+// 回放一份抓下来的真实响应：ANCHOR_MOCK_RESPONSE=<file> 时所有 /api/chat 都返回它。
+// 用处是对着真后端的输出看渲染，而不必为每一次看一眼再付一次 LLM 的钱。
+const replayPath = process.env.ANCHOR_MOCK_RESPONSE || "";
+const replayBody = replayPath ? JSON.parse(readFileSync(resolve(root, replayPath), "utf8")) : null;
 const port = Number(process.env.PORT || 8090);
 
 const contentTypes = new Map([
@@ -125,6 +129,7 @@ function consumeRequest(request) {
 
 function mockChatResponse(requestBody) {
   const question = parseQuestion(requestBody);
+  if (replayBody) return okResponse({ ...replayBody, question });
   const rawAnswer = {
     text: "Raw mock answer\n\nMock claim. Mock claim needing weaker wording.",
     provider: "mock-provider",
