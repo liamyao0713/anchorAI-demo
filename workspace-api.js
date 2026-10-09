@@ -5,6 +5,11 @@
   const API_STORAGE_KEY = "ANCHOR_API_BASE_URL";
   const MODELS_PATH = "/api/models";
   const REQUEST_TIMEOUT_MS = 180000;
+  // 开了推理模式的那一次要等更久：后端给这种请求的总预算是
+  // ANCHOR_V6_REASONING_REQUEST_TIMEOUT_SECONDS（默认 300 秒）。浏览器这一侧的
+  // 中断计时器必须比它**长**，否则后端还在跑、本地已经把请求掐了——用户看到的是
+  // 「请求已取消」，而服务端那边照样花了钱。30 秒余量留给网络和隧道。
+  const REASONING_REQUEST_TIMEOUT_MS = 330000;
   const JSON_CHAT_PATH = "/api/chat";
   const STREAM_CHAT_PATH = "/api/chat/stream";
   const HEALTH_PATH = "/health";
@@ -218,7 +223,17 @@
     if (model) body.llm_model = model;
     const pasted = typeof options.rawAnswer === "string" ? options.rawAnswer.trim() : "";
     if (pasted) body.raw_answer = pasted;
+    // 推理模式和上面两个不一样：**总是**发，而且发的是布尔。界面上它是一个有
+    // 两档的开关，用户关着它就是在明确要求「这一次不要推理」——不发这个字段的
+    // 意思是「按服务端默认走」，那会让一个关着的开关在服务端默认开推理时失效。
+    body.anchor_reasoning = options.anchorReasoning === true;
     return body;
+  }
+
+  // 这一次请求浏览器等多久。开推理时后端的预算本来就更长，见
+  // REASONING_REQUEST_TIMEOUT_MS 上面那段。
+  function requestTimeoutMs(anchorReasoning) {
+    return anchorReasoning === true ? REASONING_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
   }
 
   async function requestJsonChat(options) {
@@ -380,6 +395,9 @@
     fetchModelCatalog,
     API_STORAGE_KEY,
     REQUEST_TIMEOUT_MS,
+    REASONING_REQUEST_TIMEOUT_MS,
+    requestTimeoutMs,
+    buildChatBody,
     JSON_CHAT_PATH,
     STREAM_CHAT_PATH,
     HEALTH_PATH,

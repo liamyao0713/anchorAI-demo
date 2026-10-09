@@ -1032,3 +1032,110 @@ console.log("corrected-count semantics checks passed");
 }
 
 console.log("null-item tolerance checks passed");
+
+// --------------------------------------------------------------------------
+// 推理模式开关（修复 4）
+//
+// 「这一次的矫正调用要不要开推理」。后端两个模式的代价差一个数量级（实测矫正调用
+// 112～155 秒对 20～40 秒），所以这是每次提问都能改的开关，默认关。
+
+// 开关住在提问卡片的控件那一排（.aw-paste-row）。三栏模式下 A 框栏头那排控件
+// （选模型 / 粘贴答案）也会被搬到同一行，而且搬到开关**之前**——所以最终读成
+// 「粘贴 / 模型 / 推理模式 + 提示」，小字留在最后。
+{
+  const rowStart = workspaceHtml.indexOf('<div class="aw-paste-row">');
+  assert.ok(rowStart > 0, "the question card must still have its control row");
+  const rowHtml = workspaceHtml.slice(rowStart, workspaceHtml.indexOf("</div>", workspaceHtml.indexOf('id="aw-reasoning-hint"')));
+  assert.match(rowHtml, /id="aw-paste-toggle"/, "the paste toggle must still be in that row");
+  assert.match(rowHtml, /id="aw-reasoning"/, "the reasoning switch must sit in that same row");
+  assert.match(rowHtml, /id="aw-reasoning-hint"/, "the hint must sit next to the switch");
+  // 搬家的目的地和顺序都要钉住：append 的话小字会夹在控件中间。
+  assert.match(workspaceUiJs, /insertBefore\(refs\.reviewPanelTools, refs\.reasoningControl\)/, "relocated controls must land before the switch");
+}
+// A 框栏头那排不动：标题加两个控件已经是它放得下的全部。
+{
+  const toolsStart = workspaceHtml.indexOf('class="aw-panel-tools"');
+  const toolsHtml = workspaceHtml.slice(toolsStart, workspaceHtml.indexOf("</header>", toolsStart));
+  assert.match(toolsHtml, /id="aw-model"/, "the model select must stay in panel A's header");
+  assert.doesNotMatch(toolsHtml, /id="aw-reasoning"/, "the switch must not crowd panel A's header");
+}
+
+// 它是一个开关，不是一个按钮：role=switch + aria-checked，而且默认关。
+assert.match(workspaceHtml, /id="aw-reasoning"[^>]*role="switch"/, "reasoning control must be a switch");
+assert.match(workspaceHtml, /id="aw-reasoning"[^>]*aria-checked="false"/, "reasoning must default to off in the markup");
+assert.match(workspaceHtml, /id="aw-reasoning"[^>]*aria-describedby="aw-reasoning-hint"/, "the switch must point at its own hint");
+// 提示默认藏着：关着的时候它说的那件事没有发生。
+assert.match(workspaceHtml, /id="aw-reasoning-hint"[^>]*hidden/, "the hint must start hidden");
+
+// 文案两套都在，而且中文就是用户给的那一句。
+assert.match(workspaceUiJs, /reasoningMode: "Reasoning mode"/, "English switch label must exist");
+assert.match(workspaceUiJs, /reasoningMode: "推理模式"/, "Chinese switch label must exist");
+assert.match(workspaceUiJs, /reasoningHint: "开启后更慢（约 2–3 分钟），矫正可能更细。"/, "Chinese hint must be the agreed sentence");
+assert.match(workspaceUiJs, /reasoningHint: "Slower when on \(about 2-3 minutes\)/, "English hint must exist");
+// 文案走 data-i18n，不是写死的 textContent——否则切语言会把它刷回英文。
+assert.match(workspaceHtml, /data-i18n="reasoningMode"/, "switch label must be translated via data-i18n");
+assert.match(workspaceHtml, /data-i18n="reasoningHint"/, "hint must be translated via data-i18n");
+// data-i18n 不能挂在按钮本身：applyStaticTranslations 会重设 textContent，
+// 那会把状态点那个 span 一起抹掉。
+assert.doesNotMatch(workspaceHtml, /id="aw-reasoning"[^>]*data-i18n=/, "data-i18n must sit on an inner span, not on the switch itself");
+
+// localStorage 记住上次的选择，读写都包 try/catch（走既有的 safeLocalStorage*）。
+assert.match(workspaceUiJs, /ANCHOR_REASONING_MODE/, "the choice must be remembered");
+assert.match(workspaceUiJs, /safeLocalStorageSet\(REASONING_STORAGE_KEY/, "writing the choice must go through the guarded helper");
+assert.match(workspaceUiJs, /safeLocalStorageGet\(REASONING_STORAGE_KEY\)/, "reading the choice must go through the guarded helper");
+// 只有明确的 "on" 才算开：坏值/旧值的结果是关，不是悄悄替用户开了推理。
+assert.match(workspaceUiJs, /setReasoningMode\(storedReasoningChoice\(\) === REASONING_ON\)/, "a stored junk value must mean off");
+
+// 三栏里**不**标注模型或模式（用户明确要求）。
+assert.doesNotMatch(anchorReviewCss, /reasoning/i, "the three-column view must not style a mode badge");
+{
+  const reviewStart = workspaceHtml.indexOf('id="aw-anchor-review"');
+  assert.ok(reviewStart > 0, "the three-column section must exist");
+  const reviewHtml = workspaceHtml.slice(reviewStart);
+  assert.doesNotMatch(reviewHtml, /reasoning/i, "the three-column markup must not annotate the mode");
+}
+
+// 请求体：**总是**带 anchor_reasoning，而且是布尔。不发它等于「按服务端默认走」,
+// 那会让一个关着的开关在服务端默认开推理时失效。
+{
+  const body = workspaceApi.buildChatBody({ question: "q" });
+  assert.equal(body.anchor_reasoning, false, "an absent choice must be sent as an explicit false");
+  assert.equal(workspaceApi.buildChatBody({ question: "q", anchorReasoning: true }).anchor_reasoning, true);
+  assert.equal(workspaceApi.buildChatBody({ question: "q", anchorReasoning: false }).anchor_reasoning, false);
+  // 只有真正的 true 算开——"true"、1、"on" 都不算，免得某处把字符串传进来就静默开了推理。
+  for (const loose of ["true", 1, "on", {}]) {
+    assert.equal(workspaceApi.buildChatBody({ question: "q", anchorReasoning: loose }).anchor_reasoning, false);
+  }
+}
+
+// 浏览器的中断计时器要比后端给开推理那一次的预算（默认 300 秒）长，否则后端还在跑、
+// 本地已经把请求掐了：用户看到「请求已取消」，而那笔钱照样花了。
+assert.ok(workspaceApi.REASONING_REQUEST_TIMEOUT_MS > 300000, "the client must outwait the server's 300s reasoning budget");
+assert.equal(workspaceApi.requestTimeoutMs(true), workspaceApi.REASONING_REQUEST_TIMEOUT_MS);
+assert.equal(workspaceApi.requestTimeoutMs(false), workspaceApi.REQUEST_TIMEOUT_MS);
+assert.equal(workspaceApi.requestTimeoutMs(undefined), workspaceApi.REQUEST_TIMEOUT_MS);
+// 两条路（流式和一次性回退）都要带上这个字段，否则回退那一路会悄悄用服务端默认值。
+assert.match(workspaceUiJs, /requestStreamedChat\(\{[\s\S]{0,200}anchorReasoning/, "the streamed path must send the choice");
+assert.match(workspaceUiJs, /requestJsonChat\(\{[\s\S]{0,200}anchorReasoning/, "the JSON fallback path must send the choice too");
+assert.match(workspaceUiJs, /Api\.requestTimeoutMs\(anchorReasoning\)/, "the abort timer must follow the chosen mode");
+
+// 跑着的时候冻住：中途拨动它只会让界面说的和这一次实际用的模式不一样。
+assert.match(workspaceUiJs, /refs\.reasoningSwitch\.disabled = running;/, "the switch must be frozen mid-run");
+
+// 样式跟着并排那个按钮走：同一个 .aw-ghost-button 底子，开着时用和粘贴模式
+// 同一套蓝色填充，只多一个状态点。
+assert.match(workspaceHtml, /id="aw-reasoning"[^>]*class="aw-ghost-button aw-reasoning-switch"/, "the switch must reuse the ghost-button base");
+assert.match(workspaceCss, /\.aw-reasoning-switch\[aria-checked="true"\] \{[^}]*--aw-blue-soft/, "the on state must use the same blue fill as paste mode");
+assert.match(workspaceCss, /\.aw-reasoning-switch:disabled/, "the frozen state must be visible");
+assert.match(workspaceCss, /\.aw-reasoning-hint/, "the hint must be styled");
+
+// 这三个常量必须在模块作用域：initWorkspace 在声明位置之前就调用 setReasoningMode，
+// 而 const 不提升——写在函数里会在初始化时抛 ReferenceError，整个工作台一个事件
+// 都绑不上（页面看起来还在，但按钮全不响应）。这一条是实测踩出来的。
+{
+  const moduleScope = workspaceUiJs.slice(0, workspaceUiJs.indexOf("function initWorkspace"));
+  assert.match(moduleScope, /const REASONING_STORAGE_KEY =/, "REASONING_STORAGE_KEY must be declared above initWorkspace");
+  assert.match(moduleScope, /const REASONING_ON =/, "REASONING_ON must be declared above initWorkspace");
+}
+
+console.log("reasoning-mode switch checks passed");

@@ -2403,6 +2403,64 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
   color: var(--aw-text);
 }
 
+/* ---------------------------------------------------------------- 推理模式开关
+   住在提问卡片的 .aw-paste-row 里，和「改为粘贴一段答案」并排；三栏模式下 A 框
+   栏头那排控件也会搬到同一行来。所以它按浅底控件来调，用的就是旁边那个按钮的
+   .aw-ghost-button 底子，只多一个状态点和一行提示。 */
+.aw-reasoning-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.aw-reasoning-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+/* 状态点。光靠底色填不填，关着的时候看不出这是个有两档的开关。 */
+.aw-switch-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  opacity: .55;
+  flex: 0 0 auto;
+}
+
+.aw-reasoning-switch[aria-checked="true"] {
+  border-color: var(--aw-blue);
+  background: var(--aw-blue-soft);
+  color: var(--aw-text);
+  font-weight: 600;
+}
+
+.aw-reasoning-switch[aria-checked="true"] .aw-switch-dot {
+  background: var(--aw-blue);
+  border-color: var(--aw-blue);
+  opacity: 1;
+}
+
+.aw-reasoning-switch:disabled {
+  opacity: .5;
+}
+
+/* 「开启后更慢」那行提示。只在开关打开时显示（JS 控 hidden），关着的时候它说的
+   那件事没有发生，摆在那里只是噪声。窄屏上整块跟着 .aw-paste-row 的 wrap 落行。 */
+.aw-reasoning-hint {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--aw-text);
+  opacity: .66;
+}
+
 .aw-paste-wrap {
   display: grid;
   gap: 6px;

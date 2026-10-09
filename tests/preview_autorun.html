@@ -7,7 +7,9 @@
     PORT=8039 node tests/mock_frontend_server.mjs          # 同源地提供页面与假 API
     open "http://127.0.0.1:8039/tests/preview_autorun.html?lang=zh&clean=1"
   参数：q=问题（mock 里 "anchor review" 给完整三栏，"anchor fallback" 给校正未完成）、
-       lang=en|zh、clean=1 切到净版。
+       lang=en|zh、clean=1 切到净版、reasoning=1 先打开「推理模式」开关、
+       stop=controls 只截提问区那一排控件（不提交，用来看开关自己的样子）、
+       focus=question 跑完之后看提问卡片（三栏模式下控件会搬到那里）。
 -->
 <html><head><meta charset="utf-8"><title>anchor_review preview harness</title>
 <style>html,body{margin:0;background:#f1f5f9}iframe{width:1760px;height:1500px;border:0;display:block}</style>
@@ -22,11 +24,23 @@ const f = document.getElementById("f");
 // 默认指向**提供本页的那个源**：mock 服务器同时供静态文件和假 API，所以同源即可，
 // 不用处理 CORS。真后端起在别处时用 ?api=http://127.0.0.1:8037 覆盖。
 const api = params.get("api") || location.origin;
+const reasoning = params.get("reasoning") === "1";
+const stopAtControls = params.get("stop") === "controls";
 f.addEventListener("load", () => {
   const w = f.contentWindow, d = f.contentDocument;
   setTimeout(() => {
     const langBtn = d.querySelector(`.aw-lang-button[data-ui-lang="${lang}"]`);
     if (langBtn) langBtn.click();
+    // 真的点那个开关，而不是直接写 aria-checked：要看的就是点击这条路对不对。
+    const reasoningSwitch = d.getElementById("aw-reasoning");
+    if (reasoning !== (reasoningSwitch.getAttribute("aria-checked") === "true")) {
+      reasoningSwitch.click();
+    }
+    if (stopAtControls) {
+      const card = d.querySelector(".aw-question-card");
+      w.scrollTo(0, card.getBoundingClientRect().top + w.scrollY - 86);
+      return;
+    }
     const box = d.getElementById("aw-question");
     box.value = question;
     box.dispatchEvent(new w.Event("input", { bubbles: true }));
@@ -37,7 +51,10 @@ f.addEventListener("load", () => {
     const settle = () => {
       if (section.hidden && Date.now() < deadline) { setTimeout(settle, 400); return; }
       if (clean) { const s = d.getElementById("awv7-switch"); s.checked = true; s.dispatchEvent(new w.Event("change", { bubbles: true })); }
-      setTimeout(() => w.scrollTo(0, section.getBoundingClientRect().top + w.scrollY - 86), 300);
+      // focus=question：跑完之后看提问卡片，而不是三栏——三栏模式下 A 框栏头那排
+      // 控件会被搬到提问卡片里，要看的就是搬完之后那一行。
+      const target = params.get("focus") === "question" ? d.querySelector(".aw-question-card") : section;
+      setTimeout(() => w.scrollTo(0, target.getBoundingClientRect().top + w.scrollY - 86), 300);
     };
     settle();
   }, 500);

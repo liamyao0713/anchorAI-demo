@@ -37,6 +37,11 @@
     "not_evaluated",
   ];
   const UI_LANGUAGE_STORAGE_KEY = "ANCHOR_UI_LANGUAGE";
+  //: 推理模式开关记住的那一项。和上面一样放在模块作用域：``initWorkspace`` 在声明
+  //: 位置之前就要读它（见 setReasoningMode 上面那段）。
+  const REASONING_STORAGE_KEY = "ANCHOR_REASONING_MODE";
+  const REASONING_ON = "on";
+  const REASONING_OFF = "off";
   const LEGACY_ABOUT_LANGUAGE_STORAGE_KEY = "ANCHOR_ABOUT_LANGUAGE";
   const UI_LANGUAGES = new Set(["en", "zh"]);
   let currentUiLanguage = "en";
@@ -223,6 +228,8 @@
       questionRequired: "Question must not be empty.",
       baseModelLabel: "Base model",
       baseModelNote: "The model choice applies to this answer only; Anchor verifies with its own configured model.",
+      reasoningMode: "Reasoning mode",
+      reasoningHint: "Slower when on (about 2-3 minutes); the correction may be more detailed.",
       pasteToggle: "Paste an answer instead",
       pasteHere: "Paste answer",
       pasteModeNote: "Box A will use the answer you paste below. No model writes it, and the provenance is recorded as user-provided.",
@@ -537,6 +544,8 @@
       questionRequired: "问题不能为空。",
       baseModelLabel: "基座模型",
       baseModelNote: "这个选择只决定 A 框由哪个模型生成；Anchor 的核验始终用它自己配置的模型。",
+      reasoningMode: "推理模式",
+      reasoningHint: "开启后更慢（约 2–3 分钟），矫正可能更细。",
       pasteToggle: "改为粘贴一段答案",
       pasteHere: "粘贴答案",
       pasteModeNote: "A 框将直接使用你贴在下面的答案，不由任何模型生成；出处会如实记成「用户提供」。",
@@ -703,6 +712,9 @@
     rememberPasteHome();
     // 同理：三栏模式会把 A 框栏头那排控件搬进提问卡片，原位要先记下来。
     rememberPanelToolsHome();
+    // 默认**关**。记住的那个值只在明确是 "on" 时才算开，所以 localStorage 里一个坏值
+    // 或者旧值的结果是「关」，不是「悄悄替用户开了推理」。
+    setReasoningMode(storedReasoningChoice() === REASONING_ON);
     initUiLanguage();
     bindEvents();
     renderAll();
@@ -725,6 +737,7 @@
 
       refs.questionInput.addEventListener("input", renderRunControls);
       refs.modelSelect.addEventListener("change", rememberModelChoice);
+      refs.reasoningSwitch.addEventListener("click", () => setReasoningMode(!reasoningOn()));
       // 这个按钮在提问卡片里，但粘贴区开启后会搬进 A 框，所以要把 A 框带进视野，
       // 否则在它原地等着的人会以为什么都没发生。
       refs.pasteToggle.addEventListener("click", () => {
@@ -954,9 +967,12 @@
       const startedMs = Date.now();
       state = State.startRun(state, question, startedAt);
       activeController = new AbortController();
+      // 开推理的那一次后端预算就更长，所以本地的中断计时器也要跟着放长——否则
+      // 后端还在跑、浏览器已经把请求掐了，用户看到「请求已取消」，而那笔钱照样花了。
+      const anchorReasoning = reasoningOn();
       activeTimeout = window.setTimeout(() => {
         if (activeController) activeController.abort();
-      }, Api.REQUEST_TIMEOUT_MS);
+      }, Api.requestTimeoutMs(anchorReasoning));
       renderAll();
 
       const model = selectedModel();
@@ -968,6 +984,7 @@
           question,
           model,
           rawAnswer,
+          anchorReasoning,
           signal: activeController.signal,
           onStage: (stage) => {
             state = State.recordStage(state, stage, new Date().toISOString());
@@ -990,6 +1007,7 @@
             question,
             model,
             rawAnswer,
+            anchorReasoning,
             signal: activeController.signal,
           });
         }
@@ -1144,6 +1162,37 @@
     const MODEL_STORAGE_KEY = "ANCHOR_BASE_MODEL";
     let modelCatalog = null;
 
+    // ------------------------------------------------------------------ 推理模式
+    //
+    // 决定**这一次**矫正调用要不要开推理（请求体里的 ``anchor_reasoning``）。两个
+    // 模式的代价差一个数量级：后端实测矫正调用开推理 112～155 秒、关推理 20～40 秒，
+    // 开推理的产出更厚。所以这是一个每次提问都能改的开关，而不是一个部署时定下的
+    // 配置——该由要等的那个人决定要不要等。
+    //
+    // 默认**关**：大多数问题不值得多等两分钟，而一个默认开着的开关会让第一次用这个
+    // 站点的人以为它本来就这么慢。
+    //
+    // 三栏界面里**不标注**模式：用户明确要求过不要那个标注。开没开只体现在这个开关
+    // 自己的状态上，以及响应里的 ``anchor_review.reasoning``（给审计看的）。
+    // 三个常量声明在模块作用域（文件顶部），不在这里：``initWorkspace`` 在读到这一段
+    // 之前就调用了 ``setReasoningMode``，而 ``const`` 不像函数声明那样提升——写在这里
+    // 会在初始化时抛 ReferenceError，整个工作台一个事件都绑不上。
+    function storedReasoningChoice() {
+      return safeLocalStorageGet(REASONING_STORAGE_KEY) || "";
+    }
+
+    function reasoningOn() {
+      return refs.reasoningSwitch.getAttribute("aria-checked") === "true";
+    }
+
+    function setReasoningMode(on) {
+      refs.reasoningSwitch.setAttribute("aria-checked", on ? "true" : "false");
+      // 提示只在开着的时候出现：关着时它说的那件事没有发生，摆在那里只是噪声。
+      refs.reasoningHint.hidden = !on;
+      // 记不住只是下次要重选，不该因此让页面不能用（隐私模式下写不进去）。
+      safeLocalStorageSet(REASONING_STORAGE_KEY, on ? REASONING_ON : REASONING_OFF);
+    }
+
     function storedModelChoice() {
       try {
         return window.localStorage.getItem(MODEL_STORAGE_KEY) || "";
@@ -1257,6 +1306,9 @@
       refs.cancelButton.hidden = !running;
       refs.retryButton.hidden = running || !lastQuestion || state.status !== "failed";
       refs.copyQuestionButton.disabled = !question;
+      // 跑着的时候冻住这个开关：请求体已经发出去了，中途拨动它只会让界面说的
+      // 和这一次实际用的模式不一样。
+      refs.reasoningSwitch.disabled = running;
       refs.clearButton.disabled = running ? false : !question && !state.viewModel && !state.rawAnswer;
       refs.exportMarkdownButton.disabled = !state.viewModel;
       refs.exportJsonButton.disabled = !state.viewModel;
@@ -2026,7 +2078,9 @@
       if (!panelToolsHome.parent) return;
       if (intoQuestionCard) {
         if (refs.reviewPanelTools.parentNode !== refs.pasteRow) {
-          refs.pasteRow.appendChild(refs.reviewPanelTools);
+          // 插在推理模式开关**之前**，这一排才读成「粘贴 / 模型 / 推理模式 + 提示」：
+          // 提示那行小字要留在最后，夹在两个控件中间会被当成它们的说明。
+          refs.pasteRow.insertBefore(refs.reviewPanelTools, refs.reasoningControl);
         }
       } else if (refs.reviewPanelTools.parentNode !== panelToolsHome.parent) {
         panelToolsHome.parent.insertBefore(refs.reviewPanelTools, panelToolsHome.next);
@@ -2563,6 +2617,9 @@
       topicTag: required(root, "#aw-topic-tag"),
       modelTag: required(root, "#aw-model-tag"),
       modelSelect: required(root, "#aw-model"),
+      reasoningControl: required(root, "#aw-reasoning-control"),
+      reasoningSwitch: required(root, "#aw-reasoning"),
+      reasoningHint: required(root, "#aw-reasoning-hint"),
       pasteToggle: required(root, "#aw-paste-toggle"),
       pasteHere: required(root, "#aw-paste-here"),
       rawText: required(root, "#aw-raw-text"),

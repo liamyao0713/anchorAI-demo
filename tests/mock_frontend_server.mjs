@@ -41,6 +41,7 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && request.url === "/api/chat/stream") {
     const requestBody = await consumeRequest(request);
+    logChatRequest(requestBody);
     const mockResponse = mockChatResponse(requestBody);
     if (mockResponse.status !== 200) {
       sendJson(response, mockResponse.body, mockResponse.status);
@@ -65,6 +66,7 @@ const server = createServer(async (request, response) => {
 
   if (request.method === "POST" && request.url === "/api/chat") {
     const requestBody = await consumeRequest(request);
+    logChatRequest(requestBody);
     const mockResponse = mockChatResponse(requestBody);
     if (mockResponse.delayMs) await delay(mockResponse.delayMs);
     sendJson(response, mockResponse.body, mockResponse.status);
@@ -338,6 +340,19 @@ function baseResponse(question, rawAnswer) {
     confidence: null,
     latency_ms: 12,
   };
+}
+
+// 把**浏览器真的发出来**的那个字段打到日志里。看界面只能看出开关反应了，
+// 看不出请求体里到底带了什么——而带没带才是这个开关唯一的作用。
+function logChatRequest(requestBody) {
+  let anchorReasoning = "<unparsable>";
+  try {
+    const payload = JSON.parse(requestBody || "{}");
+    anchorReasoning = JSON.stringify(payload.anchor_reasoning);
+  } catch (_error) {
+    /* 记下 <unparsable> 就够了 */
+  }
+  console.log(`mock_chat_request anchor_reasoning=${anchorReasoning}`);
 }
 
 function parseQuestion(requestBody) {
