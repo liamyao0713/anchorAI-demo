@@ -389,4 +389,60 @@ function kinds(segments) {
     fallback.aText.replace(/\*\*/g, ""));
 }
 
+// ------------------------------------------------- A 边生成边显示（修改 3）
+//
+// 等 final 的那段时间 Ⓐ 栏显示的是 raw_answer_delta 拼起来的半截原话，走的是和
+// final 之后**同一条**路径：parseAnswer(text, []) → 段落结构 → createElement/
+// textContent。所以这里断言的就是这条路径在「半截、带敌意字符、还没有 a_marks」
+// 时的行为。
+
+{
+  // 拼接只是把增量按顺序接起来，解析层不做任何拼装：给它什么就显示什么。
+  const deltas = ["阿奇霉素可", "减少 COPD 急性加重", "（HR 0.73）。"];
+  const joined = deltas.join("");
+  assert.equal(flatten(Review.parseAnswer(joined, [])), joined, "拼起来的 A 必须一个字不差地显示");
+
+  // 半截的句子照样显示，不等它完整：这一栏此刻承诺的就是「模型目前写到这里」。
+  const partial = joined.slice(0, 9);
+  assert.equal(flatten(Review.parseAnswer(partial, [])), partial, "半截的 A 必须照原样显示");
+}
+
+{
+  // 流进来的文字同样是模型写的，而且比 final 更不可控（它可能在任何一个字符上断开）。
+  // 尖括号留在 text 段里，由 DOM 层 textContent 落地 —— 没有一步把它当标记解析。
+  const hostile = '<script>alert(1)</script> 与 〚NEW〛半截';
+  const segments = Review.parseAnswer(hostile, []);
+  const textSegments = segments.filter((segment) => segment.kind === "text");
+  assert.ok(textSegments.some((segment) => segment.text.includes("<script>")),
+    "尖括号必须留在文本段里（由 textContent 落地），不能在这一层被改写");
+  // 〚NEW〛 这种残留标记在 Ⓐ 栏按历史行为原样显示：这一栏承诺的是 LLM 逐字原文。
+  assert.ok(flatten(segments).includes("〚NEW〛"), "Ⓐ 栏不脱标记，逐字原文照原样显示");
+  // 没有任何一个段落被标成可渲染的标记类型。
+  assert.deepEqual([...kinds(segments)], ["text"], "流式 A 只应产出纯文本段");
+}
+
+{
+  // 换行要拆成 br：一段还在生成的回答，换行是它唯一的结构。
+  const segments = Review.parseAnswer("第一段\n\n第二段开头", []);
+  assert.equal(segments.filter((segment) => segment.kind === "br").length, 2, "两个换行必须拆成两个 br");
+  assert.equal(flatten(segments), "第一段\n\n第二段开头");
+}
+
+{
+  // 流式阶段还没有 references（它们随 final 才到），所以 [1] 只能是纯文本：造一个
+  // 指向不存在条目的锚点，点下去什么都不会发生。
+  const segments = Review.parseAnswer("支持这一点 [1]。", []);
+  assert.ok(!kinds(segments).has("ref"), "没有 references 时 [N] 不能变成上标链接");
+  assert.equal(flatten(segments), "支持这一点 [1]。");
+}
+
+{
+  // raw_answer 一到就以它为准：同一个解析器换成完整文本，结果与拼接版无关。
+  const stitched = "阿奇霉素可减少急性加重";
+  const full = "阿奇霉素可减少 COPD 急性加重（HR 0.73）。";
+  assert.notEqual(flatten(Review.parseAnswer(stitched, [])), flatten(Review.parseAnswer(full, [])));
+  assert.equal(flatten(Review.parseAnswer(full, [])), full, "覆盖之后显示的必须是完整的那一份");
+}
+
 console.log("anchor_review parse checks passed");
+console.log("streaming raw-answer parse checks passed");

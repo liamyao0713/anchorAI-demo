@@ -13,6 +13,10 @@ const anchorReviewFixture = JSON.parse(
 const replayPath = process.env.ANCHOR_MOCK_RESPONSE || "";
 const replayBody = replayPath ? JSON.parse(readFileSync(resolve(root, replayPath), "utf8")) : null;
 const port = Number(process.env.PORT || 8090);
+// 提速那一轮（2026-10-10）要看的东西只有「时间上的顺序」：Ⓐ 一段一段出现、Ⓑ/Ⓒ 占位
+// 并换进度文案、final 之后三栏完整。所以这两个间隔可调——截图时放慢，自动跑时调快。
+const deltaIntervalMs = Number(process.env.ANCHOR_MOCK_DELTA_MS || 150);
+const stepIntervalMs = Number(process.env.ANCHOR_MOCK_STEP_MS || 700);
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -51,6 +55,15 @@ const server = createServer(async (request, response) => {
       "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-store",
     });
+    // 问题里带 "anchor stream" 就走分段发 A 的那一套；其余照旧一口气发完。
+    // 再带上 "error" 的话，A 发完之后发 error 而不是 final —— 用来看「A 已经显示在
+    // 三栏里了，这一次却失败了」时页面退回什么样子。
+    const streamQuestion = parseQuestion(requestBody);
+    if (/anchor stream/i.test(streamQuestion)) {
+      await sendDeltaStream(response, mockResponse.body, /error/i.test(streamQuestion));
+      response.end();
+      return;
+    }
     await sendStreamEvent(response, "stage", { query_id: "mock-query-id", stage: "accepted" });
     await sendStreamEvent(response, "stage", { query_id: "mock-query-id", stage: "raw_generation" });
     await sendStreamEvent(response, "raw_answer", { query_id: "mock-query-id", raw_answer: mockResponse.body.raw_answer });
@@ -215,7 +228,7 @@ function mockChatResponse(requestBody) {
       },
     });
   }
-  if (/anchor review/i.test(question)) {
+  if (/anchor review|anchor stream/i.test(question)) {
     return okResponse({ ...anchorReviewFixture, question });
   }
   if (/anchor fallback/i.test(question)) {
@@ -370,6 +383,47 @@ function parseQuestion(requestBody) {
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
+// A 边生成边推的模拟流：raw_answer_delta 分段发，中途夹 stage 与带 phase 的
+// keepalive，最后才是完整的 raw_answer 与 final。发送节奏照约定里那句「可合并成每
+// ~150 ms 或每 ~200 字一次」。
+async function sendDeltaStream(response, body, failAfterA) {
+  const queryId = String(body.query_id || "mock-query-id");
+  const text = String((body.raw_answer && body.raw_answer.text) || "");
+  await sendStreamEvent(response, "stage", { query_id: queryId, stage: "accepted" });
+  await sendStreamEvent(response, "stage", { query_id: queryId, stage: "raw_generation" });
+  const chunkSize = Math.max(1, Math.ceil(text.length / 12));
+  for (let at = 0; at < text.length; at += chunkSize) {
+    await delay(deltaIntervalMs);
+    await sendStreamEvent(response, "raw_answer_delta", { query_id: queryId, text: text.slice(at, at + chunkSize) });
+  }
+  await delay(deltaIntervalMs);
+  // 完整的那一份照旧发，前端用它覆盖拼接结果。
+  await sendStreamEvent(response, "raw_answer", { query_id: queryId, raw_answer: body.raw_answer });
+  if (failAfterA) {
+    await delay(stepIntervalMs);
+    await sendStreamEvent(response, "error", {
+      query_id: queryId,
+      http_status: 500,
+      error: { code: "INTERNAL_ERROR", message: "mocked failure after the raw answer", query_id: queryId },
+    });
+    return;
+  }
+  const steps = [
+    ["retrieval", "retrieval"],
+    ["claim_extraction", "retrieval"],
+    ["verification", "ncbi"],
+    ["correction", "correction"],
+  ];
+  for (const [stage, phase] of steps) {
+    await delay(stepIntervalMs);
+    await sendStreamEvent(response, "stage", { query_id: queryId, stage });
+    // 心跳带 phase 是**可选**的，这里带上，好把前端那条路也走一遍。
+    await sendStreamEvent(response, "keepalive", { query_id: queryId, phase });
+  }
+  await delay(stepIntervalMs);
+  await sendStreamEvent(response, "final", body);
 }
 
 function sendStreamEvent(response, event, data) {

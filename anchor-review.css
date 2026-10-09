@@ -459,3 +459,106 @@
   padding: 1px 7px;
   overflow-wrap: anywhere;
 }
+
+/* ── Ⓐ 流式 / Ⓑ·Ⓒ 占位（2026-10-10 提速） ─────────────────────────────────
+ *
+ * 历史页面是预渲染的，不存在「这一次还在跑」这个状态，所以下面这些规则没有历史
+ * 来源。配色沿用三栏已有的那几个：占位块用 Ⓒ 栏的淡紫（.v7-audit-note 同一组），
+ * 骨架条用页面上的灰阶，光标用 Ⓐ 栏的红。
+ */
+
+/* [hidden] 只给元素一条 UA 的 display:none，作者样式表里**任何**一条 display 都会
+   盖掉它。.v7-slide-ctl 的 inline-flex 就是这样：占位期间把它 hidden 了，开关照样
+   留在 Ⓑ 栏头上（截图里看到的）。在这一段里把 [hidden] 钉死，省得下一个加样式的人
+   再踩一遍。 */
+#aw-anchor-review [hidden] { display: none !important; }
+
+#aw-anchor-review .v7-stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #dc2626;
+  animation: awv7-caret 1.05s step-end infinite;
+}
+
+@keyframes awv7-caret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+#aw-anchor-review .v7-pending {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  padding: 11px 12px;
+}
+
+#aw-anchor-review .v7-col-b .v7-pending {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+#aw-anchor-review .v7-pending-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+  font-size: 12.5px;
+  color: #374151;
+}
+
+#aw-anchor-review .v7-pending-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #7c3aed;
+  animation: awv7-pulse 1.4s ease-in-out infinite;
+}
+
+#aw-anchor-review .v7-col-b .v7-pending-dot { background: #16a34a; }
+
+@keyframes awv7-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .35; transform: scale(.75); }
+}
+
+#aw-anchor-review .v7-pending-step {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+#aw-anchor-review .v7-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+#aw-anchor-review .v7-skel-line {
+  height: 9px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 37%, #e5e7eb 63%);
+  background-size: 400% 100%;
+  animation: awv7-shimmer 1.5s linear infinite;
+}
+
+#aw-anchor-review .v7-skel-line:nth-child(2) { width: 88%; }
+#aw-anchor-review .v7-skel-line:nth-child(3) { width: 64%; }
+
+@keyframes awv7-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+/* 关掉动画的人照样要看得出这三处在等：光标与圆点留在「亮着」那一帧，骨架条
+   保持静止的灰底 —— 信息在于它们在不在，不在于它们动不动。 */
+@media (prefers-reduced-motion: reduce) {
+  #aw-anchor-review .v7-stream-caret,
+  #aw-anchor-review .v7-pending-dot,
+  #aw-anchor-review .v7-skel-line { animation: none; }
+}

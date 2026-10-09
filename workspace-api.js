@@ -212,8 +212,17 @@
       const data = event && event.data ? event.data : {};
       if (name === "stage" && options.onStage) {
         options.onStage(data.stage, data);
+      } else if (name === "raw_answer_delta" && options.onRawAnswerDelta) {
+        // A 边生成边推。``text`` 是**增量**，按到达顺序拼起来就是目前写出的 A。
+        // 生成完后照旧来一次完整的 raw_answer，以它为准（拼接只是等待期间的近似：
+        // 丢一个事件、或者后端合并事件的方式变了，都不该让屏幕上留下一段残缺的原话）。
+        if (typeof data.text === "string" && data.text) options.onRawAnswerDelta(data.text, data);
       } else if (name === "raw_answer" && data.raw_answer && options.onRawAnswer) {
         options.onRawAnswer(data.raw_answer, data);
+      } else if (name === "keepalive" && options.onKeepalive) {
+        // 心跳本来只说明「连接还活着」。后端**可选地**在 data.phase 里带上当前步骤
+        // （retrieval / ncbi / correction），带了就用来更新 Ⓑ/Ⓒ 的进度，不带照旧忽略。
+        options.onKeepalive(data);
       } else if (name === "final") {
         finalPayload = data;
         if (options.onFinal) options.onFinal(data);

@@ -772,8 +772,16 @@ assert.doesNotMatch(anchorReviewCss, /\.vpill \{[\s\S]*white-space: nowrap/,
 
 // 整份样式都压在 #aw-anchor-review 底下：.card / .ctab / .diff-del 这些类名同时存在于
 // 下方归档的案例画廊，不限定作用域就会互相串味。
-assert.doesNotMatch(anchorReviewCss, /^(?!.*#aw-anchor-review)[^@\n{}]+\{/m,
+// @keyframes 的内层是关键帧（`0%, 100% { … }`），不是选择器，没法串味——先摘掉它们，
+// 否则这条断言会把每一个关键帧都当成一条没限定作用域的规则。名字的隔离由下一条管。
+const anchorReviewRules = anchorReviewCss.replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");
+assert.doesNotMatch(anchorReviewRules, /^(?!.*#aw-anchor-review)[^@\n{}]+\{/m,
   "every anchor_review rule must be scoped under #aw-anchor-review");
+// 动画名是**全局**的，没有作用域可言：同名的 @keyframes 后定义的会盖掉先定义的。
+// 所以这一份里的名字一律带 awv7- 前缀，和 workspace.css / cases.css 不会撞。
+for (const name of anchorReviewCss.match(/@keyframes\s+([\w-]+)/g) || []) {
+  assert.match(name, /@keyframes\s+awv7-/, `${name} must be prefixed so it cannot clash with another sheet`);
+}
 
 // 渲染层只产出结构，由 UI 用 createElement/textContent 落地。正文来自模型，所以
 // 「不把它交给 innerHTML」这条规矩必须覆盖新模块。
@@ -1070,8 +1078,11 @@ assert.match(workspaceHtml, /id="aw-reasoning-hint"[^>]*hidden/, "the hint must 
 // 文案两套都在，而且中文就是用户给的那一句。
 assert.match(workspaceUiJs, /reasoningMode: "Reasoning mode"/, "English switch label must exist");
 assert.match(workspaceUiJs, /reasoningMode: "推理模式"/, "Chinese switch label must exist");
-assert.match(workspaceUiJs, /reasoningHint: "开启后更慢（约 2–3 分钟），矫正可能更细。"/, "Chinese hint must be the agreed sentence");
-assert.match(workspaceUiJs, /reasoningHint: "Slower when on \(about 2-3 minutes\)/, "English hint must exist");
+// 2026-10-10：推理加速后实测整题 85–98 秒，提示跟着改成「约 1.5 分钟」——提示里写
+// 的那个时长是用户唯一的预期来源，和实测差一倍就是在误导。
+assert.match(workspaceUiJs, /reasoningHint: "开启后更慢（约 1\.5 分钟），矫正可能更细。"/, "Chinese hint must be the agreed sentence");
+assert.match(workspaceUiJs, /reasoningHint: "Slower when on \(about 1\.5 minutes\); the correction may be more detailed\."/, "English hint must exist");
+assert.doesNotMatch(workspaceUiJs, /2-3 minutes|2–3 分钟/, "the pre-speedup duration must be gone from both languages");
 // 文案走 data-i18n，不是写死的 textContent——否则切语言会把它刷回英文。
 assert.match(workspaceHtml, /data-i18n="reasoningMode"/, "switch label must be translated via data-i18n");
 assert.match(workspaceHtml, /data-i18n="reasoningHint"/, "hint must be translated via data-i18n");
@@ -1203,3 +1214,226 @@ assert.match(workspaceUiJs, /return \(info && info\.message\) \|\| "";/, "codes 
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning timeout must stay at 330s");
 
 console.log("paste-entry + stream-only checks passed");
+
+// --------------------------------------------------------------------------
+// 修改 3：A 边生成边显示 / Ⓑ·Ⓒ 占位与进度（2026-10-10 提速）
+
+// 1) 新事件 raw_answer_delta 被识别，按顺序拼接；完整的 raw_answer 一到就覆盖。
+//    keepalive.data.phase 带了就用来更新进度，不带照旧忽略；认不出的事件照旧忽略。
+{
+  const events = [
+    { event: "stage", data: { query_id: "q1", stage: "raw_generation" } },
+    { event: "raw_answer_delta", data: { query_id: "q1", text: "Azithromycin " } },
+    { event: "raw_answer_delta", data: { query_id: "q1", text: "reduces exacerbations" } },
+    // 不认识的事件照旧忽略：解析链是「认识的才处理」，所以后端加事件不会弄坏老前端。
+    { event: "some_future_event", data: { whatever: true } },
+    { event: "raw_answer", data: { query_id: "q1", raw_answer: { text: "Azithromycin reduces exacerbations.", model: "m" } } },
+    { event: "keepalive", data: { query_id: "q1", phase: "ncbi" } },
+    { event: "stage", data: { query_id: "q1", stage: "correction" } },
+    { event: "final", data: { query_id: "q1", question: "q" } },
+  ];
+  const ndjson = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(ndjson, {
+    status: 200,
+    headers: { "content-type": "application/x-ndjson; charset=utf-8" },
+  });
+  const seen = { deltas: [], raw: null, stages: [], keepalives: [] };
+  try {
+    const payload = await workspaceApi.requestStreamedChat({
+      apiBase: "http://127.0.0.1:1",
+      question: "q",
+      onStage: (stage) => seen.stages.push(stage),
+      onRawAnswerDelta: (text) => seen.deltas.push(text),
+      onRawAnswer: (rawAnswer) => { seen.raw = rawAnswer; },
+      onKeepalive: (data) => seen.keepalives.push(data.phase),
+    });
+    assert.deepEqual(seen.deltas, ["Azithromycin ", "reduces exacerbations"], "deltas must arrive in order");
+    assert.equal(seen.raw.text, "Azithromycin reduces exacerbations.", "the full raw_answer must still be delivered");
+    assert.deepEqual(seen.stages, ["raw_generation", "correction"], "stage events must keep working alongside the deltas");
+    assert.deepEqual(seen.keepalives, ["ncbi"], "a keepalive phase must be surfaced when the server sends one");
+    assert.equal(payload.query_id, "q1", "the final payload must still be what the call returns");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+// 一个没有回调的调用者（比如还没接线的旧代码）不能因为新事件而炸：两个新分支都
+// 守了回调存在。
+assert.match(workspaceApiJs, /name === "raw_answer_delta" && options\.onRawAnswerDelta/,
+  "the delta branch must be guarded by its callback");
+assert.match(workspaceApiJs, /name === "keepalive" && options\.onKeepalive/,
+  "the keepalive branch must be guarded by its callback");
+// 空的 text 不往上传：后端合并事件时偶尔会发一个空串，那不是一次「A 又长了一点」。
+assert.match(workspaceApiJs, /typeof data\.text === "string" && data\.text/, "an empty delta must not be forwarded");
+
+// 2) 状态层：按顺序拼接、完整的 raw_answer 覆盖、认不出的阶段不把进度抹掉。
+{
+  let state = workspaceState.startRun(workspaceState.createInitialState(), "q", "2026-10-10T00:00:00Z");
+  assert.equal(state.streamingAnswer, "", "a new run must start with nothing stitched");
+  assert.equal(workspaceState.liveAnswerText(state), "", "nothing stitched means nothing to show");
+
+  state = workspaceState.appendRawAnswerDelta(state, "Azithromycin ");
+  state = workspaceState.appendRawAnswerDelta(state, "reduces ");
+  state = workspaceState.appendRawAnswerDelta(state, "exacerbations");
+  assert.equal(state.streamingAnswer, "Azithromycin reduces exacerbations", "deltas must concatenate in order");
+  assert.equal(workspaceState.liveAnswerText(state), "Azithromycin reduces exacerbations");
+
+  // 空串 / 非字符串不动状态：为它克隆一次状态并重画一次 Ⓐ 栏没有意义。
+  for (const junk of ["", null, undefined, 7, {}]) {
+    assert.equal(workspaceState.appendRawAnswerDelta(state, junk), state, "a junk delta must leave the state identical");
+  }
+
+  // 覆盖：完整的 raw_answer 到了之后，显示以它为准，拼接结果作废。
+  const full = { text: "Azithromycin reduces exacerbations (HR 0.73).", model: "m" };
+  const after = workspaceState.receiveRawAnswer(state, full);
+  assert.equal(after.streamingAnswer, "", "the stitched text must be dropped once the full answer arrives");
+  assert.equal(workspaceState.liveAnswerText(after), full.text, "the full raw_answer must win");
+  // 拼出来的那一份不能再从任何地方渗回来。
+  assert.ok(!workspaceState.liveAnswerText(after).startsWith("Azithromycin reduces exacerbations("),
+    "the two versions must not be concatenated");
+
+  // 清空重来时拼接结果也要跟着走：留着它，下一题开头会先闪一下上一题的原话。
+  assert.equal(workspaceState.clearRun().streamingAnswer, "");
+  assert.equal(workspaceState.startRun(after, "q2", "2026-10-10T00:01:00Z").streamingAnswer, "");
+}
+
+// 三步进度：后端的 stage 和 keepalive.phase 都归到约定的三步上。
+assert.equal(workspaceState.progressPhase("retrieval"), "retrieval");
+assert.equal(workspaceState.progressPhase("claim_retrieval"), "retrieval");
+assert.equal(workspaceState.progressPhase("claim_extraction"), "retrieval");
+assert.equal(workspaceState.progressPhase("verification"), "ncbi");
+assert.equal(workspaceState.progressPhase("ncbi"), "ncbi");
+assert.equal(workspaceState.progressPhase("correction"), "correction");
+assert.equal(workspaceState.progressPhase("CORRECTION"), "correction", "the mapping must not care about case");
+// 三步以外的一律空：raw_generation 时 Ⓑ/Ⓒ 还没开始，accepted / 没见过的阶段不该被
+// 硬塞进三步里的某一步。
+for (const other of ["raw_generation", "accepted", "verification_skipped", "", null, "whatever"]) {
+  assert.equal(workspaceState.progressPhase(other), "", `${other} must not be forced into one of the three steps`);
+}
+{
+  let state = workspaceState.recordStage(workspaceState.startRun(workspaceState.createInitialState(), "q"), "retrieval");
+  assert.equal(state.livePhase, "retrieval", "a stage event must move the displayed step");
+  state = workspaceState.recordStage(state, "verification");
+  assert.equal(state.livePhase, "ncbi");
+  // 认不出的阶段保留上一步：把「正在核验引用」换成空白，看起来像进度退回去了，
+  // 而后端其实什么都没变。
+  state = workspaceState.recordStage(state, "something_new");
+  assert.equal(state.livePhase, "ncbi", "an unknown stage must keep the step already on screen");
+  assert.equal(workspaceState.setLivePhase(state, "nonsense"), state, "an unknown keepalive phase must not clone the state");
+  assert.equal(workspaceState.setLivePhase(state, "ncbi"), state, "the same phase twice must not clone the state");
+  assert.equal(workspaceState.setLivePhase(state, "correction").livePhase, "correction");
+}
+
+// 3) 接线：delta 只重画三栏，不走 renderAll —— 这期间每 ~150ms 就来一个事件，
+//    一次 renderAll 会把整页（面板、筛选器、审计表）全部重建。
+{
+  const handler = workspaceUiJs.slice(
+    workspaceUiJs.indexOf("onRawAnswerDelta: (chunk) =>"),
+    workspaceUiJs.indexOf("onKeepalive: (data) =>"));
+  assert.match(handler, /State\.appendRawAnswerDelta\(state, chunk\)/, "the delta must go through the state layer");
+  assert.match(handler, /renderAnchorReview\(\)/, "a delta must repaint the columns");
+  assert.doesNotMatch(handler, /renderAll\(\)/, "a delta must not repaint the whole page");
+}
+assert.match(workspaceUiJs, /onKeepalive: \(data\) => \{[\s\S]{0,260}State\.setLivePhase\(state, data && data\.phase\)/,
+  "the keepalive phase must go through the state layer");
+// stage 和 raw_answer 也要重画三栏：一个管进度文案，一个管「用完整版覆盖 Ⓐ」。
+assert.match(workspaceUiJs, /onStage: \(stage\) => \{[\s\S]{0,400}renderAnchorReview\(\)/, "a stage event must refresh the progress line");
+assert.match(workspaceUiJs, /onRawAnswer: \(rawAnswer\) => \{[\s\S]{0,400}renderAnchorReview\(\)/, "the full answer must repaint the columns");
+
+// 三栏在 final 之前就摆出来，但只在跑着的时候：跑完/失败后三栏在不在由响应里有没有
+// anchor_review 决定（否则一次失败的运行会留下一个空壳三栏）。
+assert.match(workspaceUiJs, /function reviewPreviewOn\(\) \{[\s\S]{0,300}state\.status === "running" && Boolean\(State\.liveAnswerText\(state\)\)/,
+  "the skeleton must appear as soon as A has text, and only while the run is live");
+assert.match(workspaceUiJs, /if \(!review && reviewPreviewOn\(\)\) \{\s*\n\s*setReviewActive\(true\);\s*\n\s*renderReviewPreview\(\);/,
+  "renderAnchorReview must take the preview path before falling back to the workbench");
+// Ⓐ 的流式文本走的是和 final 之后同一条路径：parseAnswer → 段落结构 → textContent。
+// 这条规矩（不把模型输出交给 innerHTML）必须覆盖流式这一路。
+assert.match(workspaceUiJs, /renderReviewProse\(refs\.reviewTextA, Review\.parseAnswer\(State\.liveAnswerText\(state\), \[\]\)/,
+  "the streaming A column must render through the escaping-free structure path");
+assert.doesNotMatch(workspaceUiJs, /\.innerHTML|insertAdjacentHTML/, "no path may hand model text to innerHTML");
+// 模型名要等完整的 raw_answer 才知道，在那之前用不点名模型的标题，而不是拿下拉框
+// 里选的那个去猜（粘贴模式下根本没有模型写 A）。
+assert.match(workspaceUiJs, /function renderReviewPreview\(\)[\s\S]{0,700}t\("reviewTitleAUnknownModel"\)/,
+  "the preview must not name a model it has not been told about");
+
+// 占位期间 Ⓑ/Ⓒ 的正式内容全部让位，「修订 ⇄ 净版」也收起来：此刻切过去两边都是空的。
+assert.match(workspaceUiJs, /function setReviewPending\(on\) \{[\s\S]{0,600}refs\.reviewCorr\.hidden = on;/,
+  "the corrected prose must stand down while the placeholder is up");
+assert.match(workspaceUiJs, /function setReviewPending\(on\) \{[\s\S]{0,600}refs\.reviewAuditContent\.hidden = on;/,
+  "the audit content must stand down while the placeholder is up");
+assert.match(workspaceUiJs, /function setReviewPending\(on\) \{[\s\S]{0,600}refs\.reviewSlide\.hidden = on;/,
+  "the track/clean switch must stand down while there is no correction yet");
+// 占位必须撤干净，不管接下来画不画三栏：留着它，下一次运行一开始会先闪一下上一次的
+// 「正在核验…」。
+assert.match(workspaceUiJs, /setReviewPending\(false\);\s*\n\s*if \(!review\) return;/,
+  "the placeholder must be cleared even when no review follows");
+// 等高内滚在占位期间让开：对到最短那栏（占位块）就是把正在长出来的 Ⓐ 关进一个
+// 460px 的框里滚，而这段时间屏幕上唯一在动的就是它。
+assert.match(workspaceUiJs, /if \(!reviewActive \|\| reviewPending \|\| window\.innerWidth <= 1100/,
+  "equalising must stand down while the columns are a placeholder");
+// 占位块的结构在 HTML 里，JS 只刷步骤那一行：每个 delta 重建一次节点的话，骨架
+// 动画会一次次从头开始闪。
+assert.match(workspaceUiJs, /function renderReviewProgress\(\) \{[\s\S]{0,400}querySelector\("\.v7-pending-step"\)/,
+  "only the step line may be rewritten on each event");
+assert.doesNotMatch(workspaceUiJs, /replaceChildren\(refs\.reviewPendingB\)/, "the placeholder must not be rebuilt per event");
+
+// 4) 文案：三步中英两套，中文就是约定里的那三句。
+for (const key of ["reviewPendingTitle", "reviewProgressStarting", "reviewProgressRetrieval",
+  "reviewProgressCitations", "reviewProgressCorrection", "reviewStreamingAria"]) {
+  assert.equal((workspaceUiJs.match(new RegExp(`\\n\\s+${key}:`, "g")) || []).length, 2,
+    `${key} must exist in both languages`);
+}
+assert.match(workspaceUiJs, /reviewProgressRetrieval: "正在检索证据"/, "Chinese retrieval step must match the agreed wording");
+assert.match(workspaceUiJs, /reviewProgressCitations: "正在核验引用"/, "Chinese citation step must match the agreed wording");
+assert.match(workspaceUiJs, /reviewProgressCorrection: "正在矫正"/, "Chinese correction step must match the agreed wording");
+assert.match(workspaceUiJs, /reviewPendingTitle: "正在核验…"/, "Chinese placeholder title must match the agreed wording");
+assert.match(workspaceUiJs, /reviewProgressRetrieval: "Searching evidence"/, "English retrieval step must exist");
+assert.match(workspaceUiJs, /reviewProgressCitations: "Checking citations"/, "English citation step must exist");
+assert.match(workspaceUiJs, /reviewProgressCorrection: "Applying corrections"/, "English correction step must exist");
+// 三步的译文由 reviewProgressLabel 按 livePhase 选，不是写死的字符串。
+assert.match(workspaceUiJs, /function reviewProgressLabel\(\) \{[\s\S]{0,400}state\.livePhase === "retrieval"/,
+  "the step line must be chosen by the live phase");
+
+// 5) 占位块的骨架在 HTML 里，默认藏着，标题走 data-i18n（切语言才不会被刷回英文），
+//    role=status 让读屏跟得上步骤变化。
+for (const id of ["awv7-b-pending", "awv7-c-pending"]) {
+  const start = workspaceHtml.indexOf(`id="${id}"`);
+  assert.ok(start > 0, `${id} must exist in the review columns`);
+  const block = workspaceHtml.slice(start, workspaceHtml.indexOf("</div>", workspaceHtml.indexOf("v7-skel", start)));
+  assert.match(block, /role="status"/, `${id} must announce itself to a screen reader`);
+  assert.match(block, /aria-live="polite"/, `${id} must announce step changes`);
+  assert.match(block, /hidden/, `${id} must start hidden`);
+  assert.match(block, /data-i18n="reviewPendingTitle"/, `${id} must translate its title through data-i18n`);
+  assert.match(block, /class="v7-pending-step"/, `${id} must carry the step line`);
+  assert.equal((block.match(/v7-skel-line/g) || []).length, 3, `${id} must carry the three skeleton bars`);
+}
+// 让位的那三块各有一个 id/ref，否则「隐藏正式内容」只能靠类名猜。
+assert.match(workspaceHtml, /id="awv7-b-corr"/, "the corrected prose wrapper must be addressable");
+assert.match(workspaceHtml, /id="awv7-c-content"/, "the audit content wrapper must be addressable");
+assert.match(workspaceHtml, /id="awv7-b-slide"/, "the track/clean switch must be addressable");
+
+// 6) 样式：光标、占位块、骨架条，以及关掉动画的人照样看得出这几处在等。
+assert.match(anchorReviewCss, /\.v7-stream-caret \{[\s\S]*animation: awv7-caret/, "the streaming caret must blink");
+assert.match(anchorReviewCss, /\.v7-pending \{/, "the placeholder must be styled");
+// [hidden] 只给一条 UA 的 display:none，作者样式表里任何一条 display 都会盖掉它 ——
+// .v7-slide-ctl 的 inline-flex 就把它盖掉了，占位期间开关照样留在 Ⓑ 栏头上。
+// 这一条是看截图发现的，不是断言发现的。
+assert.match(anchorReviewCss, /#aw-anchor-review \[hidden\] \{ display: none !important; \}/,
+  "hiding inside the review section must survive the section's own display rules");
+assert.match(anchorReviewCss, /\.v7-pending-step \{/, "the step line must be styled");
+assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/, "the skeleton bars must shimmer");
+{
+  const reduced = anchorReviewCss.slice(anchorReviewCss.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.ok(reduced.length > 0, "reduced motion must be honoured");
+  for (const selector of ["v7-stream-caret", "v7-pending-dot", "v7-skel-line"]) {
+    assert.ok(reduced.includes(selector), `${selector} must stop animating under reduced motion`);
+  }
+  assert.match(reduced, /animation: none/, "reduced motion must switch the animations off, not just slow them");
+}
+
+// 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
+assert.match(html, /\?v=20261010-speed/, "this round's assets must carry the new cache stamp");
+// 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
+assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
+
+console.log("streaming A + pending-columns checks passed");

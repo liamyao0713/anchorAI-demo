@@ -229,7 +229,7 @@
       baseModelLabel: "Base model",
       baseModelNote: "The model choice applies to this answer only; Anchor verifies with its own configured model.",
       reasoningMode: "Reasoning mode",
-      reasoningHint: "Slower when on (about 2-3 minutes); the correction may be more detailed.",
+      reasoningHint: "Slower when on (about 1.5 minutes); the correction may be more detailed.",
       pasteHere: "Paste answer",
       pasteModeNote: "Box A will use the answer you paste below. No model writes it, and the provenance is recorded as user-provided.",
       pasteHereCancel: "Cancel paste",
@@ -363,6 +363,13 @@
       reviewIncompleteNoReason: "The server did not state a reason.",
       reviewSourceKb: "KB-grounded",
       reviewSourceVerified: "literature-verified",
+      // Ⓐ 到了、final 还没到时 Ⓑ/Ⓒ 栏显示的占位与步骤。三步照提速约定的措辞。
+      reviewPendingTitle: "Verifying…",
+      reviewProgressStarting: "Starting the verification pipeline",
+      reviewProgressRetrieval: "Searching evidence",
+      reviewProgressCitations: "Checking citations",
+      reviewProgressCorrection: "Applying corrections",
+      reviewStreamingAria: "The raw answer is still being written",
     },
     zh: {
       documentTitle: "AnchorAI | 证据核验工作台",
@@ -544,7 +551,7 @@
       baseModelLabel: "基座模型",
       baseModelNote: "这个选择只决定 A 框由哪个模型生成；Anchor 的核验始终用它自己配置的模型。",
       reasoningMode: "推理模式",
-      reasoningHint: "开启后更慢（约 2–3 分钟），矫正可能更细。",
+      reasoningHint: "开启后更慢（约 1.5 分钟），矫正可能更细。",
       pasteHere: "粘贴答案",
       pasteModeNote: "A 框将直接使用你贴在下面的答案，不由任何模型生成；出处会如实记成「用户提供」。",
       pasteHereCancel: "取消粘贴",
@@ -677,6 +684,12 @@
       reviewIncompleteNoReason: "后端未给出原因。",
       reviewSourceKb: "KB 锚定",
       reviewSourceVerified: "文献核验",
+      reviewPendingTitle: "正在核验…",
+      reviewProgressStarting: "正在启动核验流程",
+      reviewProgressRetrieval: "正在检索证据",
+      reviewProgressCitations: "正在核验引用",
+      reviewProgressCorrection: "正在矫正",
+      reviewStreamingAria: "原始回答还在生成",
     },
   };
 
@@ -704,6 +717,9 @@
     // rememberPanelToolsHome()/renderAll()，而 let/const 不像函数声明那样提升。
     const panelToolsHome = { parent: null, next: null };
     let reviewActive = false;
+    // 三栏已经摆出来、但 Ⓑ/Ⓒ 还在占位（A 到了、final 没到）。等高内滚在这个状态下
+    // 要让开：对到最短那栏就是把正在长出来的 Ⓐ 关进一个 460px 的框里滚。
+    let reviewPending = false;
 
     refs.apiBaseInput.value = apiBase;
     // 必须在任何一次 setPasteMode 之前记下粘贴区的原位，否则关闭粘贴时它搬不回去。
@@ -988,12 +1004,30 @@
             state = State.recordStage(state, stage, new Date().toISOString());
             renderPipeline();
             renderRunControls();
+            // 三栏已经摆出来时，Ⓑ/Ⓒ 的占位要跟着说到哪一步了。
+            renderAnchorReview();
+          },
+          onRawAnswerDelta: (chunk) => {
+            const next = State.appendRawAnswerDelta(state, chunk);
+            if (next === state) return;
+            state = next;
+            // 只重画三栏。一个 delta 走一遍 renderAll 会把整页（面板、筛选器、审计表）
+            // 全部重建一次，而这期间每 ~150ms 就来一个 delta。
+            renderAnchorReview();
+          },
+          onKeepalive: (data) => {
+            const next = State.setLivePhase(state, data && data.phase);
+            if (next === state) return;
+            state = next;
+            renderAnchorReview();
           },
           onRawAnswer: (rawAnswer) => {
             state = State.receiveRawAnswer(state, rawAnswer);
             renderRawPanel();
             renderPipeline();
             renderSummary();
+            // 完整的 raw_answer 覆盖拼接结果：三栏这时重画，Ⓐ 换成它、光标撤掉。
+            renderAnchorReview();
           },
         });
         const completedAt = new Date().toISOString();
@@ -2245,9 +2279,76 @@
       refs.reviewReferences.appendChild(list);
     }
 
+    // Ⓐ 一到就把三栏摆出来，而不是等 final：Ⓐ 栏放正在写出来的原话，Ⓑ/Ⓒ 占位。
+    // 只在跑着的时候算——跑完或失败后，三栏在不在由响应里有没有 anchor_review 决定。
+    function reviewPreviewOn() {
+      if (!Review) return false;
+      return state.status === "running" && Boolean(State.liveAnswerText(state));
+    }
+
+    // 占位状态下 Ⓑ/Ⓒ 的正式内容全部让位：那三段（修订/净版、校正卡、引用核验）此刻
+    // 一个都还不存在，摆着空容器只会让人以为后端返回了空的校正。
+    function setReviewPending(on) {
+      reviewPending = on;
+      refs.reviewPendingB.hidden = !on;
+      refs.reviewPendingC.hidden = !on;
+      refs.reviewCorr.hidden = on;
+      refs.reviewAuditContent.hidden = on;
+      // 还没有校正稿，「修订 ⇄ 净版」切过去两边都是空的。
+      refs.reviewSlide.hidden = on;
+      if (!on) return;
+      refs.reviewIncomplete.hidden = true;
+      refs.reviewReferences.hidden = true;
+    }
+
+    function reviewProgressLabel() {
+      if (state.livePhase === "retrieval") return t("reviewProgressRetrieval");
+      if (state.livePhase === "ncbi") return t("reviewProgressCitations");
+      if (state.livePhase === "correction") return t("reviewProgressCorrection");
+      return t("reviewProgressStarting");
+    }
+
+    // 占位块的结构写在 index.html 里（标题走 data-i18n），这里只刷当前步骤那一行。
+    // 每个 delta 都重建一次节点的话，骨架动画会跟着一次次从头开始闪。
+    function renderReviewProgress() {
+      const label = reviewProgressLabel();
+      [refs.reviewPendingB, refs.reviewPendingC].forEach((host) => {
+        const step = host.querySelector(".v7-pending-step");
+        if (step) step.textContent = label;
+      });
+    }
+
+    function renderReviewPreview() {
+      setReviewPending(true);
+      // 模型名要等完整的 raw_answer 才知道（流里的 delta 只有文字），在那之前用
+      // 不点名模型的那套标题，而不是拿下拉框里选的那个去猜。
+      const model = state.rawAnswer && state.rawAnswer.model ? state.rawAnswer.model : "";
+      refs.reviewTitleA.textContent = model
+        ? t("reviewTitleA", { model: model })
+        : t("reviewTitleAUnknownModel");
+      // 和 final 之后同一条路径：解析成段落结构 → createElement/textContent。
+      // 第二个参数是空的 a_marks —— 高亮哪一句要等 Ⓒ 栏的核验结果。
+      renderReviewProse(refs.reviewTextA, Review.parseAnswer(State.liveAnswerText(state), []), "awv7-ref-live");
+      if (!state.rawAnswer) {
+        const caret = create("span", { className: "v7-stream-caret" });
+        caret.setAttribute("aria-label", t("reviewStreamingAria"));
+        refs.reviewTextA.appendChild(caret);
+      }
+      renderReviewProgress();
+      window.setTimeout(equalizeReviewColumns, 0);
+    }
+
     function renderAnchorReview() {
       const review = currentReview();
+      if (!review && reviewPreviewOn()) {
+        setReviewActive(true);
+        renderReviewPreview();
+        return;
+      }
       setReviewActive(Boolean(review));
+      // 占位要撤干净，不管接下来画不画三栏：留着它，下一次运行一开始屏幕上就会先闪
+      // 一下上一次的「正在核验…」。
+      setReviewPending(false);
       if (!review) return;
 
       const idPrefix = `awv7-ref-${safeClass(state.response && state.response.query_id)}`;
@@ -2297,7 +2398,9 @@
         body.style.height = "";
         body.style.overflowY = "";
       });
-      if (!reviewActive || window.innerWidth <= 1100 || bodies.length < 2) return;
+      // 占位期间不对齐：最短的那栏是占位块，Ⓐ 会被关进一个 460px 的框里，正在生成的
+      // 那几行当场滚出视野——而这段时间屏幕上唯一在动的就是它。
+      if (!reviewActive || reviewPending || window.innerWidth <= 1100 || bodies.length < 2) return;
       const shortest = bodies.reduce((min, body) => Math.min(min, body.scrollHeight), Infinity);
       const cap = Math.round(window.innerHeight * REVIEW_VIEWPORT_SHARE);
       const height = Math.max(REVIEW_MIN_HEIGHT, Math.min(shortest, cap));
@@ -2679,6 +2782,11 @@
       reviewTitleA: required(root, "#awv7-a-title"),
       reviewTextA: required(root, "#awv7-a-text"),
       reviewIncomplete: required(root, "#awv7-b-incomplete"),
+      reviewSlide: required(root, "#awv7-b-slide"),
+      reviewPendingB: required(root, "#awv7-b-pending"),
+      reviewPendingC: required(root, "#awv7-c-pending"),
+      reviewCorr: required(root, "#awv7-b-corr"),
+      reviewAuditContent: required(root, "#awv7-c-content"),
       reviewTrackView: required(root, "#awv7-b-track"),
       reviewCleanView: required(root, "#awv7-b-clean"),
       reviewReferences: required(root, "#awv7-b-refs"),
