@@ -346,13 +346,17 @@ function baseResponse(question, rawAnswer) {
 // 看不出请求体里到底带了什么——而带没带才是这个开关唯一的作用。
 function logChatRequest(requestBody) {
   let anchorReasoning = "<unparsable>";
+  // 粘贴模式同理：按钮翻成「取消粘贴」只说明它自己翻了，说明不了请求体里带没带
+  // 那段文字——而带没带才是粘贴模式唯一的作用。
+  let rawAnswer = "<unparsable>";
   try {
     const payload = JSON.parse(requestBody || "{}");
     anchorReasoning = JSON.stringify(payload.anchor_reasoning);
+    rawAnswer = typeof payload.raw_answer === "string" ? `${payload.raw_answer.length} chars` : "<absent>";
   } catch (_error) {
     /* 记下 <unparsable> 就够了 */
   }
-  console.log(`mock_chat_request anchor_reasoning=${anchorReasoning}`);
+  console.log(`mock_chat_request anchor_reasoning=${anchorReasoning} raw_answer=${rawAnswer}`);
 }
 
 function parseQuestion(requestBody) {

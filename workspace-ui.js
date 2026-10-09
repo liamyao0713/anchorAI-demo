@@ -230,15 +230,14 @@
       baseModelNote: "The model choice applies to this answer only; Anchor verifies with its own configured model.",
       reasoningMode: "Reasoning mode",
       reasoningHint: "Slower when on (about 2-3 minutes); the correction may be more detailed.",
-      pasteToggle: "Paste an answer instead",
       pasteHere: "Paste answer",
       pasteModeNote: "Box A will use the answer you paste below. No model writes it, and the provenance is recorded as user-provided.",
       pasteHereCancel: "Cancel paste",
-      pasteCancel: "Back to generating an answer",
       pasteLabel: "Answer to verify",
       pastePlaceholder: "Paste an answer here and Anchor will verify it instead of generating one",
       pasteNote: "The question is still required: coverage gaps and the per-outcome evidence dossier are derived from the question, not from the answer.",
       pasteRequired: "Paste the answer you want verified, or switch back to generating one.",
+      errorStreamUnavailable: "The streaming endpoint did not return an event stream, so this run was stopped. Retry; if it keeps failing, the API at this address does not serve /api/chat/stream.",
       requestFailed: "The request failed.",
       idle: "Idle",
       serverProcessing: "Server processing. Results will update as real stream events arrive.",
@@ -546,15 +545,14 @@
       baseModelNote: "这个选择只决定 A 框由哪个模型生成；Anchor 的核验始终用它自己配置的模型。",
       reasoningMode: "推理模式",
       reasoningHint: "开启后更慢（约 2–3 分钟），矫正可能更细。",
-      pasteToggle: "改为粘贴一段答案",
       pasteHere: "粘贴答案",
       pasteModeNote: "A 框将直接使用你贴在下面的答案，不由任何模型生成；出处会如实记成「用户提供」。",
       pasteHereCancel: "取消粘贴",
-      pasteCancel: "改回由模型生成",
       pasteLabel: "待校正的答案",
       pastePlaceholder: "把一段答案贴在这里，Anchor 将直接校正它，而不再生成",
       pasteNote: "问题仍然必填：覆盖缺口与逐结局证据底稿都是从问题算出来的，不是从答案算的。",
       pasteRequired: "请贴上要校正的答案，或改回由模型生成。",
+      errorStreamUnavailable: "流式接口没有返回事件流，这一次核验没有开始。请重试；如果一直这样，说明这个地址的 API 没有提供 /api/chat/stream。",
       requestFailed: "请求失败。",
       idle: "空闲",
       serverProcessing: "服务端处理中。结果会随真实 stream 事件更新。",
@@ -738,15 +736,15 @@
       refs.questionInput.addEventListener("input", renderRunControls);
       refs.modelSelect.addEventListener("change", rememberModelChoice);
       refs.reasoningSwitch.addEventListener("click", () => setReasoningMode(!reasoningOn()));
-      // 这个按钮在提问卡片里，但粘贴区开启后会搬进 A 框，所以要把 A 框带进视野，
-      // 否则在它原地等着的人会以为什么都没发生。
-      refs.pasteToggle.addEventListener("click", () => {
+      // 粘贴模式唯一的入口。它住在 A 框栏头，但三栏模式下会被搬到提问卡片那一排，
+      // 两处的粘贴区落点也不一样（见 movePasteInto），所以展开后把粘贴区带进视野：
+      // 否则在按钮原地等着的人会以为什么都没发生。
+      refs.pasteHere.addEventListener("click", () => {
         togglePasteMode();
         if (pasteModeOn()) {
           refs.pasteWrap.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       });
-      refs.pasteHere.addEventListener("click", togglePasteMode);
       refs.clearButton.addEventListener("click", clearCurrentRun);
       refs.copyQuestionButton.addEventListener("click", () => copyValue(refs.questionInput.value, t("questionCopied")));
       refs.retryButton.addEventListener("click", () => {
@@ -979,7 +977,7 @@
       const rawAnswer = pasteModeOn() ? refs.pasteInput.value.trim() : "";
 
       try {
-        const streamed = await Api.requestStreamedChat({
+        const payload = await Api.requestStreamedChat({
           apiBase,
           question,
           model,
@@ -998,19 +996,6 @@
             renderSummary();
           },
         });
-        let payload = streamed.payload;
-        if (streamed.fallback) {
-          state = State.recordStage(state, "raw_generation", new Date().toISOString());
-          renderPipeline();
-          payload = await Api.requestJsonChat({
-            apiBase,
-            question,
-            model,
-            rawAnswer,
-            anchorReasoning,
-            signal: activeController.signal,
-          });
-        }
         const completedAt = new Date().toISOString();
         const vm = Adapter.normalizeResponse(payload, {
           question,
@@ -1026,7 +1011,7 @@
         const info = userCancelled ? Api.buildErrorInfo("CANCELLED", null, null) : Api.errorInfoFromException(error);
         state = userCancelled ? State.cancelRun(state, new Date().toISOString()) : State.failRun(state, info, new Date().toISOString());
         renderAll();
-        renderInlineError(info.message);
+        renderInlineError(localizedErrorMessage(info));
       } finally {
         if (activeTimeout) window.clearTimeout(activeTimeout);
         activeTimeout = null;
@@ -1263,24 +1248,21 @@
       }
     }
 
+    // 粘贴模式的状态就记在这个按钮的 aria-expanded 上：它是唯一的入口，所以
+    // 「按钮看起来什么状态」和「这一次实际走哪条路」不可能对不上。
     function pasteModeOn() {
-      return refs.pasteToggle.getAttribute("aria-expanded") === "true";
+      return refs.pasteHere.getAttribute("aria-expanded") === "true";
     }
 
     function setPasteMode(on) {
-      refs.pasteToggle.setAttribute("aria-expanded", on ? "true" : "false");
       refs.pasteWrap.hidden = !on;
       // 贴答案时不生成 A，所以选哪个模型没有意义——把它收起来，省得让人以为
       // 贴进来的文字会被某个模型改写。
       refs.modelSelect.disabled = on;
       // 改的是 **i18n 键**，不是文本。``applyStaticTranslations`` 会把每个
       // ``[data-i18n]`` 元素的 textContent 重设成那个键对应的译文；直接写 textContent
-      // 的话，切换界面语言会把按钮文案刷回「改为粘贴一段答案」，而粘贴区还开着——
-      // 标签和状态当场互相矛盾。
-      refs.pasteToggle.dataset.i18n = on ? "pasteCancel" : "pasteToggle";
-      refs.pasteToggle.textContent = t(refs.pasteToggle.dataset.i18n);
-      // 两个按钮开的是同一个状态，所以两边的 aria-expanded 与文案都要跟着翻；
-      // 只翻一个的话，A 框那个会一直显示「粘贴答案」而粘贴区已经开着。
+      // 的话，切换界面语言会把按钮文案刷回「粘贴答案」，而粘贴区还开着——标签和状态
+      // 当场互相矛盾。
       refs.pasteHere.setAttribute("aria-expanded", on ? "true" : "false");
       refs.pasteHere.dataset.i18n = on ? "pasteHereCancel" : "pasteHere";
       refs.pasteHere.textContent = t(refs.pasteHere.dataset.i18n);
@@ -2362,7 +2344,7 @@
       if (state.status === "idle") return t("idle");
       if (state.status === "running") return t("serverProcessing");
       if (state.status === "completed") return t("completed");
-      if (state.status === "failed" && state.error) return `${state.error.code || "FAILED"}: ${state.error.message || t("failedFallback")}`;
+      if (state.status === "failed" && state.error) return `${state.error.code || "FAILED"}: ${localizedErrorMessage(state.error) || t("failedFallback")}`;
       return state.status;
     }
 
@@ -2620,7 +2602,6 @@
       reasoningControl: required(root, "#aw-reasoning-control"),
       reasoningSwitch: required(root, "#aw-reasoning"),
       reasoningHint: required(root, "#aw-reasoning-hint"),
-      pasteToggle: required(root, "#aw-paste-toggle"),
       pasteHere: required(root, "#aw-paste-here"),
       rawText: required(root, "#aw-raw-text"),
       modelNote: required(root, "#aw-model-note"),
@@ -3159,6 +3140,19 @@
     const key = `${prefix}.${raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
     const translated = t(key);
     return translated === key ? raw : translated;
+  }
+
+  // workspace-api.js 里的错误文案只有英文（它不认识界面语言）。需要双语的那几条
+  // 在这里按错误码翻一次；没有对应译文的照原样显示——把一条说清了原因的英文错误
+  // 换成一句通用的中文提示，是把信息丢掉，不是本地化。
+  // 和 UI_TEXT 一样放在模块作用域：const 不提升，放进 initWorkspace 就得赌没有哪
+  // 一步在声明之前读到它。
+  const LOCALIZED_ERROR_KEYS = { STREAM_UNAVAILABLE: "errorStreamUnavailable" };
+
+  function localizedErrorMessage(info) {
+    const key = info && LOCALIZED_ERROR_KEYS[info.code];
+    if (key) return t(key);
+    return (info && info.message) || "";
   }
 
   function t(key, params) {

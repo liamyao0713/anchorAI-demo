@@ -1039,14 +1039,14 @@ console.log("null-item tolerance checks passed");
 // 「这一次的矫正调用要不要开推理」。后端两个模式的代价差一个数量级（实测矫正调用
 // 112～155 秒对 20～40 秒），所以这是每次提问都能改的开关，默认关。
 
-// 开关住在提问卡片的控件那一排（.aw-paste-row）。三栏模式下 A 框栏头那排控件
-// （选模型 / 粘贴答案）也会被搬到同一行，而且搬到开关**之前**——所以最终读成
-// 「粘贴 / 模型 / 推理模式 + 提示」，小字留在最后。
+// 开关住在提问卡片的控件那一排（.aw-paste-row）。2026-10-09 起这一排**只有**它：
+// 「改为粘贴一段答案」已经删掉，粘贴只剩 A 框栏头那一个入口。三栏模式下 A 框栏头
+// 那排控件（粘贴答案 / 选模型）会被搬到同一行，而且搬到开关**之前**——所以最终
+// 读成「粘贴 / 模型 / 推理模式 + 提示」，小字留在最后。
 {
   const rowStart = workspaceHtml.indexOf('<div class="aw-paste-row">');
   assert.ok(rowStart > 0, "the question card must still have its control row");
   const rowHtml = workspaceHtml.slice(rowStart, workspaceHtml.indexOf("</div>", workspaceHtml.indexOf('id="aw-reasoning-hint"')));
-  assert.match(rowHtml, /id="aw-paste-toggle"/, "the paste toggle must still be in that row");
   assert.match(rowHtml, /id="aw-reasoning"/, "the reasoning switch must sit in that same row");
   assert.match(rowHtml, /id="aw-reasoning-hint"/, "the hint must sit next to the switch");
   // 搬家的目的地和顺序都要钉住：append 的话小字会夹在控件中间。
@@ -1114,9 +1114,8 @@ assert.ok(workspaceApi.REASONING_REQUEST_TIMEOUT_MS > 300000, "the client must o
 assert.equal(workspaceApi.requestTimeoutMs(true), workspaceApi.REASONING_REQUEST_TIMEOUT_MS);
 assert.equal(workspaceApi.requestTimeoutMs(false), workspaceApi.REQUEST_TIMEOUT_MS);
 assert.equal(workspaceApi.requestTimeoutMs(undefined), workspaceApi.REQUEST_TIMEOUT_MS);
-// 两条路（流式和一次性回退）都要带上这个字段，否则回退那一路会悄悄用服务端默认值。
+// 只剩流式一条路，它必须带上这个字段：不发等于「按服务端默认走」。
 assert.match(workspaceUiJs, /requestStreamedChat\(\{[\s\S]{0,200}anchorReasoning/, "the streamed path must send the choice");
-assert.match(workspaceUiJs, /requestJsonChat\(\{[\s\S]{0,200}anchorReasoning/, "the JSON fallback path must send the choice too");
 assert.match(workspaceUiJs, /Api\.requestTimeoutMs\(anchorReasoning\)/, "the abort timer must follow the chosen mode");
 
 // 跑着的时候冻住：中途拨动它只会让界面说的和这一次实际用的模式不一样。
@@ -1139,3 +1138,68 @@ assert.match(workspaceCss, /\.aw-reasoning-hint/, "the hint must be styled");
 }
 
 console.log("reasoning-mode switch checks passed");
+
+// --------------------------------------------------------------------------
+// 修改 2：粘贴模式只有一个入口 / 只走流式（2026-10-09）
+
+// 提问框下方那个「改为粘贴一段答案」整个删掉了：两个按钮开同一个状态，是两处
+// 都要记得翻的重复，而它们一旦不同步，界面说的和这一次实际走的路就不一样。
+assert.doesNotMatch(html, /aw-paste-toggle/, "the second paste entry point must be gone from the page");
+assert.doesNotMatch(workspaceUiJs, /pasteToggle/, "no code may still reach for the removed button");
+// 它独有的那两个文案 key 也跟着走：留着就是一组没有任何元素会用到的译文。
+assert.doesNotMatch(workspaceUiJs, /pasteToggle:|pasteCancel:/, "the removed button's copy keys must be gone");
+// 活下来的那个还在 A 框栏头，而且仍然是 aria-expanded + 两套文案。
+assert.match(workspaceHtml, /id="aw-paste-here"[^>]*aria-expanded="false"/, "the surviving button must carry the collapsed state");
+assert.match(workspaceHtml, /id="aw-paste-here"[^>]*aria-controls="aw-paste-wrap"/, "the surviving button must point at the paste area");
+{
+  const toolsStart = workspaceHtml.indexOf('class="aw-panel-tools"');
+  const toolsHtml = workspaceHtml.slice(toolsStart, workspaceHtml.indexOf("</header>", toolsStart));
+  assert.match(toolsHtml, /id="aw-paste-here"/, "the paste button must stay in panel A's header");
+}
+// 粘贴状态现在就记在这个按钮上，没有第二个真相来源。
+assert.match(workspaceUiJs, /function pasteModeOn\(\) \{\s*\n\s*return refs\.pasteHere\.getAttribute\("aria-expanded"\) === "true";/,
+  "paste mode must be read off #aw-paste-here");
+assert.match(workspaceUiJs, /refs\.pasteHere\.addEventListener\("click"/, "the surviving button must toggle paste mode");
+assert.match(workspaceUiJs, /refs\.pasteHere\.dataset\.i18n = on \? "pasteHereCancel" : "pasteHere"/,
+  "the label must switch through the i18n key, not a hardcoded string");
+// 三栏模式下这个按钮会被搬到提问卡片那一排，所以两处的浅底样式都要在。
+assert.match(workspaceCss, /\.aw-paste-row \.aw-panel-tools \.aw-panel-tool-button\[aria-expanded="true"\]/,
+  "the relocated button must still show its on state on the light card");
+
+// 只走流式。线上经 Cloudflare 访问时，一次性的 /api/chat 在等待超过约 100 秒会被
+// 隧道切断，而开推理的一次要跑 2–3 分钟——那条路在线上必然失败。流式接口有心跳。
+const loadedFrontendJs = `${workspaceApiJs}\n${workspaceAdapterJs}\n${workspaceStateJs}\n${workspaceExportJs}\n${workspaceUiJs}\n${anchorReviewJs}`;
+assert.match(loadedFrontendJs, /"\/api\/chat\/stream"/, "the loaded frontend must request the streaming endpoint");
+// 路径只以字符串字面量的形式出现（buildApiUrl 的第二个参数），所以这里找的是带引号的
+// "/api/chat"。注释里提到它是**解释为什么没有它**，不算一次请求。
+assert.doesNotMatch(loadedFrontendJs, /["'`]\/api\/chat["'`]/,
+  "the loaded frontend must not request the one-shot chat endpoint any more");
+assert.doesNotMatch(loadedFrontendJs, /requestJsonChat|JSON_CHAT_PATH/, "the one-shot client must be gone");
+assert.equal(typeof workspaceApi.requestJsonChat, "undefined", "the one-shot client must not be exported");
+assert.equal(workspaceApi.JSON_CHAT_PATH, undefined, "the one-shot path must not be exported");
+// 流式客户端直接返回 final 那一包，不再是 { fallback, payload }。
+assert.doesNotMatch(workspaceApiJs, /fallback: true/, "requestStreamedChat must not signal a fallback any more");
+assert.match(workspaceApiJs, /return finalPayload;/, "requestStreamedChat must return the final payload directly");
+assert.doesNotMatch(workspaceUiJs, /streamed\.fallback|streamed\.payload/, "the UI must not branch on a fallback any more");
+
+// 拿不到流时给的是一条说清了原因的错误，中英文都有，而不是一个光秃秃的 HTTP 码。
+assert.match(workspaceApiJs, /STREAM_UNAVAILABLE: \{/, "an explicit error code must exist for a missing stream");
+assert.equal(workspaceApi.buildErrorInfo("STREAM_UNAVAILABLE", 404, null).retryable, true,
+  "a missing stream must be retryable");
+assert.match(workspaceApi.buildErrorInfo("STREAM_UNAVAILABLE", 404, null).message, /\/api\/chat\/stream/,
+  "the English message must name the endpoint that is missing");
+// 404/405（后端没这个路由）和「200 但不是 NDJSON」（中间被缓冲掉）都走这个码。
+assert.equal(workspaceApiJs.match(/buildErrorInfo\("STREAM_UNAVAILABLE"/g).length, 2,
+  "both the missing-route and the not-NDJSON case must report it");
+assert.match(workspaceUiJs, /errorStreamUnavailable: "The streaming endpoint/, "English copy must exist");
+assert.match(workspaceUiJs, /errorStreamUnavailable: "流式接口没有返回事件流/, "Chinese copy must exist");
+assert.match(workspaceUiJs, /renderInlineError\(localizedErrorMessage\(info\)\)/,
+  "the inline error must go through the localised lookup");
+// 没有译文的错误码照原样显示英文：把一条说清了原因的错误换成一句通用的中文提示
+// 是把信息丢掉。这一条钉住那个兜底分支。
+assert.match(workspaceUiJs, /return \(info && info\.message\) \|\| "";/, "codes without a translation must keep their own message");
+
+// 请求超时不变：浏览器这一侧必须比后端给开推理那一次的预算更长。
+assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning timeout must stay at 330s");
+
+console.log("paste-entry + stream-only checks passed");

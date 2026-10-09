@@ -10,7 +10,9 @@
   // 中断计时器必须比它**长**，否则后端还在跑、本地已经把请求掐了——用户看到的是
   // 「请求已取消」，而服务端那边照样花了钱。30 秒余量留给网络和隧道。
   const REASONING_REQUEST_TIMEOUT_MS = 330000;
-  const JSON_CHAT_PATH = "/api/chat";
+  // 只走流式。线上这个前端经 Cloudflare 访问，一次性的 /api/chat 在等待超过约
+  // 100 秒时会被隧道切断，而开了推理模式的一次要跑 2–3 分钟——那条路在线上必然
+  // 失败，留着它只会把一个必然的失败伪装成「正在生成」。流式接口有心跳。
   const STREAM_CHAT_PATH = "/api/chat/stream";
   const HEALTH_PATH = "/health";
   const READY_PATH = "/ready";
@@ -75,6 +77,12 @@
     },
     SCHEMA_MISMATCH: {
       message: "Anchor API response did not include the expected dual-answer schema.",
+      retryable: true,
+    },
+    // 拿不到事件流时就到此为止，不再退回一次性的 /api/chat：见 STREAM_CHAT_PATH
+    // 上面那段。中文文案在 workspace-ui.js 的 errorStreamUnavailable。
+    STREAM_UNAVAILABLE: {
+      message: "The streaming endpoint did not return an event stream, so this run was stopped. Retry; if it keeps failing, the API at this address does not serve /api/chat/stream.",
       retryable: true,
     },
   };
@@ -181,8 +189,10 @@
       signal: options.signal,
     });
 
+    // 404/405 过去是「这个后端还没有流式接口」的信号，于是退回 /api/chat。现在没有
+    // 退路了：当场说清楚是流式接口不在，而不是报一个看不出原因的 HTTP 错误。
     if ((response.status === 404 || response.status === 405) && !response.ok) {
-      return { fallback: true, payload: null };
+      throw new WorkspaceApiError(buildErrorInfo("STREAM_UNAVAILABLE", response.status, null));
     }
 
     if (!response.ok) {
@@ -190,9 +200,10 @@
       throw new WorkspaceApiError(errorInfoFromHttp(response.status, payload));
     }
 
+    // 200 但不是 NDJSON（比如中间有代理把它缓冲成一整个 JSON）同样没有心跳可言。
     const contentType = String(response.headers.get("content-type") || "").toLowerCase();
     if (!response.body || !contentType.includes(STREAM_MEDIA_TYPE)) {
-      return { fallback: true, payload: null };
+      throw new WorkspaceApiError(buildErrorInfo("STREAM_UNAVAILABLE", response.status, null));
     }
 
     let finalPayload = null;
@@ -214,7 +225,7 @@
     if (!finalPayload) {
       throw new WorkspaceApiError(buildErrorInfo("SCHEMA_MISMATCH", null, null));
     }
-    return { fallback: false, payload: finalPayload };
+    return finalPayload;
   }
 
   function buildChatBody(options) {
@@ -234,29 +245,6 @@
   // REASONING_REQUEST_TIMEOUT_MS 上面那段。
   function requestTimeoutMs(anchorReasoning) {
     return anchorReasoning === true ? REASONING_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
-  }
-
-  async function requestJsonChat(options) {
-    const response = await fetch(buildApiUrl(options.apiBase, JSON_CHAT_PATH), {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      },
-      // 模型与粘贴的答案都是**可选**的：没选就不发，后端按默认走。少发一个空字段，
-      // 也就少一次「空字符串算不算一个选择」的歧义。
-      body: JSON.stringify(buildChatBody(options)),
-      signal: options.signal,
-    });
-    const payload = await readJsonSafely(response);
-    if (!response.ok) {
-      if (hasDualAnswerPayload(payload)) return payload;
-      throw new WorkspaceApiError(errorInfoFromHttp(response.status, payload));
-    }
-    if (!hasDualAnswerPayload(payload)) {
-      throw new WorkspaceApiError(buildErrorInfo("SCHEMA_MISMATCH", response.status, null));
-    }
-    return payload;
   }
 
   //: 可选模型由**后端**给出，前端不写死：清单改了之后不重新部署前端也能生效，
@@ -313,10 +301,6 @@
     } catch (_error) {
       throw new WorkspaceApiError(buildErrorInfo("INVALID_JSON", response.status, null));
     }
-  }
-
-  function hasDualAnswerPayload(payload) {
-    return Boolean(payload && payload.raw_answer && payload.corrected_answer);
   }
 
   function errorInfoFromStreamEvent(data) {
@@ -398,7 +382,6 @@
     REASONING_REQUEST_TIMEOUT_MS,
     requestTimeoutMs,
     buildChatBody,
-    JSON_CHAT_PATH,
     STREAM_CHAT_PATH,
     HEALTH_PATH,
     READY_PATH,
@@ -411,8 +394,6 @@
     testConnection,
     readinessStatus,
     requestStreamedChat,
-    requestJsonChat,
-    hasDualAnswerPayload,
     errorInfoFromHttp,
     errorInfoFromStreamEvent,
     errorInfoFromException,
