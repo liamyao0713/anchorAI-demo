@@ -1437,3 +1437,10 @@ assert.match(html, /\?v=20261010-speed/, "this round's assets must carry the new
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
 console.log("streaming A + pending-columns checks passed");
+
+// anchor_v6 的 stage 名要能推进进度提示（2026-10-10 实测：一直停在「正在启动核验流程」）。
+{
+  const stateSrc = readFileSync(new URL("../workspace-state.js", import.meta.url), "utf8");
+  assert.match(stateSrc, /anchor_v6_correction:\s*"retrieval"/, "anchor_v6_correction must map to the retrieval step");
+  console.log("anchor_v6 progress alias checks passed");
+}

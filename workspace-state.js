@@ -32,6 +32,9 @@
     verification: "ncbi",
     ncbi: "ncbi",
     correction: "correction",
+    // anchor_v6 的整段（检索 → 核验引用 → 矫正）只发这一个 stage；它一到，先显示第一步，
+    // 之后由带 phase 的心跳推进到「核验引用」「矫正」。
+    anchor_v6_correction: "retrieval",
   };
 
   function progressPhase(value) {
