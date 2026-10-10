@@ -2471,3 +2471,12 @@ body.anchor-workspace-mode > .wrap:not(.aw-shell) {
 .aw-paste-wrap[hidden] {
   display: none;
 }
+
+
+/* 三栏模式（复现版版面）：旧工作台的状态汇总、框架检查、关键校正、临床代价整体让位。 */
+.aw-review-mode > .aw-summary-card,
+.aw-review-mode > .aw-framework,
+.aw-review-mode > #aw-key-corrections,
+.aw-review-mode > #aw-clinical-impact {
+  display: none !important;
+}

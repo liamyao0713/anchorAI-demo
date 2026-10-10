@@ -1432,7 +1432,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261010-speed/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261010-review-mode/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1443,4 +1443,21 @@ console.log("streaming A + pending-columns checks passed");
   const stateSrc = readFileSync(new URL("../workspace-state.js", import.meta.url), "utf8");
   assert.match(stateSrc, /anchor_v6_correction:\s*"retrieval"/, "anchor_v6_correction must map to the retrieval step");
   console.log("anchor_v6 progress alias checks passed");
+}
+
+// 三栏模式照复现版版面：旧工作台的几块卡片在根节点 class 下由 CSS 隐藏（2026-10-10）。
+{
+  const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
+  const cssSrc = readFileSync(new URL("../workspace.css", import.meta.url), "utf8");
+  const htmlSrc = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(uiSrc, /classList\.toggle\("aw-review-mode", on\)/, "setReviewActive must toggle aw-review-mode");
+  for (const sel of [".aw-review-mode > .aw-summary-card", ".aw-review-mode > .aw-framework", ".aw-review-mode > #aw-key-corrections", ".aw-review-mode > #aw-clinical-impact"]) {
+    assert.ok(cssSrc.includes(sel), `review mode must hide ${sel}`);
+  }
+  // 这几块必须是 #anchor-workspace 的直接子节点，否则 ">" 选择器选不中。
+  const main = htmlSrc.slice(htmlSrc.indexOf('<main id="anchor-workspace"'));
+  for (const marker of ['class="aw-summary-card', 'class="aw-framework"', 'id="aw-key-corrections"', 'id="aw-clinical-impact"']) {
+    assert.ok(main.includes(marker), `${marker} must live inside #anchor-workspace`);
+  }
+  console.log("review-mode layout checks passed");
 }

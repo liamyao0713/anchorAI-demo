@@ -2113,6 +2113,11 @@
       reviewActive = on;
       refs.reviewSection.hidden = !on;
       refs.workbench.hidden = on;
+      // 三栏模式照复现版的版面：提问框下面直接是 Ⓐ/Ⓑ/Ⓒ。旧工作台的状态汇总、框架检查、
+      // 关键校正、临床代价这几块整体让位（用户 2026-10-10：「隐藏，参考复现那个设计」）。
+      // 用根节点上的一个 class 交给 CSS 隐藏，而不是逐个改 hidden：它们各自的渲染函数
+      // 会按内容重设 hidden，逐个改会在下一次重画时被翻回来。
+      refs.reviewSection.parentElement.classList.toggle("aw-review-mode", on);
       movePanelTools(on);
       // 粘贴区的落点取决于 A 框在不在：在三栏模式下它得待在提问卡片里。
       movePasteInto(pasteModeOn());
