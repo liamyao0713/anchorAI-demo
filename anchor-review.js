@@ -300,11 +300,34 @@
   //
   // 高亮（a_marks）切出来的每一段各自解析，所以跨越高亮边界的 `**` 配不成对，两个星号
   // 原样留在屏幕上 —— 宁可露出标记，也不能让高亮和加粗互相错位。
+  // 高亮恰好被一对强调符包住（"**Overall confidence: High**" 里高亮了中间那句）时，
+  // 把高亮扩到连强调符一起，里面照常加粗；否则两边各剩一个落单的 ** 原样露出来
+  // （线上 2026-10-11 实测）。只在两侧是同一种、同样长度的符号时扩，且不越过上一段。
+  const EMPHASIS_WRAPPERS = ["***", "**", "__", "*", "_"];
+
+  function widenOverEmphasis(source, range, floor) {
+    for (const wrapper of EMPHASIS_WRAPPERS) {
+      const size = wrapper.length;
+      if (range.start - size >= floor &&
+          source.slice(range.start - size, range.start) === wrapper &&
+          source.slice(range.end, range.end + size) === wrapper) {
+        return { start: range.start - size, end: range.end + size };
+      }
+    }
+    return range;
+  }
+
   function parseAnswer(value, marks) {
     const source = text(value);
     const out = [];
     let cursor = 0;
-    markRanges(source, marks).forEach((range) => {
+    markRanges(source, marks).forEach((original) => {
+      if (original.start < cursor) {
+        // 上一段扩过强调符、和这一段挨着：从上一段结尾接着来，不重叠。
+        if (original.end <= cursor) return;
+        original = { start: cursor, end: original.end };
+      }
+      const range = widenOverEmphasis(source, original, cursor);
       if (range.start > cursor) {
         pushMarkdown(out, source.slice(cursor, range.start), "text", startsLine(source, cursor, true));
       }

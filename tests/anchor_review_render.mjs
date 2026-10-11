@@ -567,3 +567,15 @@ function kinds(segments) {
 
 console.log("anchor_review parse checks passed");
 console.log("streaming raw-answer parse checks passed");
+
+// 高亮恰好被 ** 包住时不再露出落单的星号（线上 2026-10-11）。
+{
+  const segs = Review.parseAnswer("Refs end.\n\n**Overall confidence: High** — based on one RCT.", ["Overall confidence: High"]);
+  const flat = JSON.stringify(segs);
+  assert.ok(!flat.includes("**"), "no lone ** may remain around a highlighted bold phrase: " + flat);
+  assert.ok(/Overall confidence: High/.test(flat), "the highlighted words must stay");
+  // 两侧符号不配对时只按能配上的那一对处理，多出来的那个照原样保留，不吞字。
+  const odd = JSON.stringify(Review.parseAnswer("**Overall confidence: High* — x", ["Overall confidence: High"]));
+  assert.ok(odd.includes("*"), "the unmatched asterisk must stay literal, not be swallowed");
+  console.log("highlight-inside-emphasis checks passed");
+}

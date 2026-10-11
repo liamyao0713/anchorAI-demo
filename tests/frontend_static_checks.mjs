@@ -1436,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261011-col-fit/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261011-mark-bold/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
