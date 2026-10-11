@@ -602,3 +602,5 @@
   #aw-anchor-review .v7-pending-dot,
   #aw-anchor-review .v7-skel-line { animation: none; }
 }
+
+#aw-anchor-review .v7-waiting { color: #6b7280; font-size: 13px; font-style: italic; margin: 0 0 6px; }

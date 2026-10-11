@@ -1342,8 +1342,8 @@ assert.match(workspaceUiJs, /onRawAnswer: \(rawAnswer\) => \{[\s\S]{0,400}render
 
 // 三栏在 final 之前就摆出来，但只在跑着的时候：跑完/失败后三栏在不在由响应里有没有
 // anchor_review 决定（否则一次失败的运行会留下一个空壳三栏）。
-assert.match(workspaceUiJs, /function reviewPreviewOn\(\) \{[\s\S]{0,300}state\.status === "running" && Boolean\(State\.liveAnswerText\(state\)\)/,
-  "the skeleton must appear as soon as A has text, and only while the run is live");
+assert.match(workspaceUiJs, /function reviewPreviewOn\(\) \{[\s\S]{0,500}return state\.status === "running";/,
+  "the skeleton must appear as soon as the run starts, and only while the run is live");
 assert.match(workspaceUiJs, /if \(!review && reviewPreviewOn\(\)\) \{\s*\n\s*setReviewActive\(true\);\s*\n\s*renderReviewPreview\(\);/,
   "renderAnchorReview must take the preview path before falling back to the workbench");
 // Ⓐ 的流式文本走的是和 final 之后同一条路径：parseAnswer → 段落结构 → textContent。
@@ -1436,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261011-mark-bold/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261011-no-jump/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1568,4 +1568,13 @@ console.log("streaming A + pending-columns checks passed");
   assert.match(uiSrc, /document\.fonts\.ready\.then\(\(\) => equalizeReviewColumns\(\)\)/, "re-equalize after web fonts load");
   assert.match(uiSrc, /hint\.hidden = !body\.style\.height \|\| scrollable <= 2/, "the hint must follow the real overflow");
   console.log("late-growth column checks passed");
+}
+
+// 一提交就切三栏骨架，并在切换前后钉住提问卡片（用户 2026-10-11：提问后页面会向下跳转）。
+{
+  const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
+  assert.match(uiSrc, /function reviewPreviewOn\(\) \{[\s\S]{0,400}return state\.status === "running";/, "preview must start with the run");
+  assert.match(uiSrc, /function setReviewActive\(on\) \{[\s\S]{0,900}window\.scrollBy\(0, shift\)/, "the question card must be pinned across the layout switch");
+  assert.match(uiSrc, /reviewWaitingA: "等待模型开始输出…"/, "zh waiting text");
+  console.log("no-jump checks passed");
 }

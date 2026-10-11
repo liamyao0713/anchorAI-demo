@@ -371,6 +371,7 @@
       reviewProgressCitations: "Checking citations",
       reviewProgressCorrection: "Applying corrections",
       reviewStreamingAria: "The raw answer is still being written",
+      reviewWaitingA: "Waiting for the model to start writing…",
       // 超过上限的那一栏在栏内滚动。Mac 的悬浮滚动条平时不显示，所以得说一句。
       reviewScrollMore: "↓ Scroll for more",
     },
@@ -694,6 +695,7 @@
       reviewProgressCitations: "正在核验引用",
       reviewProgressCorrection: "正在矫正",
       reviewStreamingAria: "原始回答还在生成",
+      reviewWaitingA: "等待模型开始输出…",
       reviewScrollMore: "↓ 向下滚动查看更多",
     },
   };
@@ -2124,6 +2126,21 @@
 
     function setReviewActive(on) {
       if (reviewActive === on) return;
+      // 版面切换（旧工作台 ⇄ 三栏、提问卡片里搬进/搬出控件）前后，把提问卡片钉在屏幕上
+      // 原来的位置：不依赖浏览器的滚动锚定（Safari 没有，Chrome 也会选错锚点）。
+      const questionCard = refs.reviewSection.parentElement.querySelector(":scope > .aw-question-card");
+      const before = questionCard ? questionCard.getBoundingClientRect().top : null;
+      try {
+        applyReviewActive(on);
+      } finally {
+        if (questionCard && before !== null && before < window.innerHeight && before > -questionCard.offsetHeight) {
+          const shift = questionCard.getBoundingClientRect().top - before;
+          if (Math.abs(shift) > 1) window.scrollBy(0, shift);
+        }
+      }
+    }
+
+    function applyReviewActive(on) {
       reviewActive = on;
       refs.reviewSection.hidden = !on;
       refs.workbench.hidden = on;
@@ -2304,7 +2321,10 @@
     // 只在跑着的时候算——跑完或失败后，三栏在不在由响应里有没有 anchor_review 决定。
     function reviewPreviewOn() {
       if (!Review) return false;
-      return state.status === "running" && Boolean(State.liveAnswerText(state));
+      // 一提交就切到三栏骨架，而不是等 A 的第一段文字：那段等待从 1.5 秒到 30 秒不等，
+      // 等到中途才把旧工作台整块换成三栏，正在往下看的人会觉得页面跳走了
+      // （用户 2026-10-11：「提问后页面会向下跳转」）。现在版面只在点下去的那一刻变一次。
+      return state.status === "running";
     }
 
     // 占位状态下 Ⓑ/Ⓒ 的正式内容全部让位：那三段（修订/净版、校正卡、引用核验）此刻
@@ -2370,6 +2390,9 @@
       // 和 final 之后同一条路径：解析成段落结构 → createElement/textContent。
       // 第二个参数是空的 a_marks —— 高亮哪一句要等 Ⓒ 栏的核验结果。
       renderReviewProse(refs.reviewTextA, Review.parseAnswer(State.liveAnswerText(state), []), "awv7-ref-live");
+      if (!state.rawAnswer && !State.liveAnswerText(state)) {
+        refs.reviewTextA.appendChild(create("p", { className: "v7-waiting", text: t("reviewWaitingA") }));
+      }
       if (!state.rawAnswer) {
         const caret = create("span", { className: "v7-stream-caret" });
         caret.setAttribute("aria-label", t("reviewStreamingAria"));
