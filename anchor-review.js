@@ -15,6 +15,10 @@
   // 先 DEL/NEW，再 NOTE/UP/HL，最后 [N]。所以写在 NEW 里面的 NOTE 会被解析出来，而写在
   // NOTE 里面的 HL 会被 NOTE 的第一个 〛 截断 —— 两边行为一致，不在这里私自「修好」。
   // 净版规则照搬同一文件的 `_strip_to_clean`。
+  //
+  // 三个视图（Ⓐ 原文 / Ⓑ 修订 / Ⓑ 净版）都解析行内 markdown：模型写的就是 markdown，
+  // 不解析它，屏幕上露出来的就是 `**`、`###`、`---` 本身。Ⓐ 栏「逐字原文」的承诺改由
+  // 「一个字都不吞」来守 —— 配不成对、不在词边界的星号与下划线一律照原样显示。
 
   const SEVERITY_COLORS = {
     substantive: "#B91C1C",
@@ -49,7 +53,25 @@
   // 旧标记，也在这里脱掉，内容照常保留。
   const RESIDUE_RE = /〚\/?(?:DEL|NEW|MOD|NOTE|UP|HL)〛?/g;
   const REF_RE = /\[(\d+)\]/g;
-  const BOLD_RE = /\*\*([^*]+)\*\*/g;
+  // 行内 markdown。模型写的就是 markdown，这一层不渲染它的话，屏幕上露出来的就是
+  // `**`、`###`、`---` 本身（用户 2026-10-11：「A 框显示不全 / 有 bug」里的一半）。
+  //
+  // `(?=\S)` 与 `(\S)\1` 把「首尾不是空格」写进正则：`a ** b ** c` 里的星号不成对，
+  // 照原样留着。强调的内容不跨行（`[^\n]`）—— 跨了行就不是一对强调，而是两处落单的
+  // 星号，吞掉它们等于把两行并成一行。
+  // `***三星***` 先于 `**` 扫：反过来的话外层只配到 `***x**`，剩一个星号落在后面。
+  const STRONG_EM_RE = /(\*\*\*|___)(?=\S)([^\n]*?)(\S)\1/g;
+  const BOLD_RE = /(\*\*|__)(?=\S)([^\n]*?)(\S)\1/g;
+  // 斜体只收一层：内容里再出现 `*` 或 `_` 就不算一对，免得 `*a **b** c*` 把粗体吃掉半截。
+  // 收尾那个字符也不许是分隔符，否则 `****` 会被当成一对包着一个星号的斜体。
+  const ITALIC_RE = /(\*|_)(?=[^*_\s])([^*_\n]*?)([^*_\s])\1/g;
+  // 开闭两侧都必须在词边界上：`2*3*4` 的乘号、`my__var__name` 里的下划线不是强调。
+  // `p<0.05*` 这种落单的星号根本配不成对，也就不会被动到。
+  const WORD_CHAR_RE = /[0-9A-Za-z_]/;
+  // 行首 1–6 个井号的标题（去掉井号、整行加粗），以及整行只有 ---/***/___ 的分隔线。
+  // 两者都是**整行**语义，所以只在真正的行首判断（见 startsLine）。
+  const HEADING_RE = /^ {0,3}(#{1,6})\s+(.*)$/;
+  const RULE_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
 
   const BLOCK_KINDS = { DEL: "del", NEW: "ins" };
 
@@ -67,31 +89,107 @@
     return numbers;
   }
 
-  // 一行文本里的换行拆成 br 段。保留 kind（text / bold / mark）不变。
-  function pushLines(out, kind, chunk) {
+  // 单层段落（纯文本 / 粗体 / 斜体）→ 如果只剩一段纯文本，就不建子节点，调用方拿到
+  // 的还是老结构 `{ kind, text }`。
+  function wrapSegments(kind, segments) {
+    if (segments.length === 1 && segments[0].kind === "text") return { kind, text: segments[0].text };
+    return { kind, children: segments };
+  }
+
+  function plainSegments(chunk) {
+    return [{ kind: "text", text: String(chunk) }];
+  }
+
+  // 一遍扫描一种强调。配不上词边界的那一对不算强调：把开头的分隔符留在文本里，从它
+  // 后面继续找下一对 —— 不成对的星号一个都不吞。
+  // `rest` 解析这一遍剩下的普通文本，`body` 解析配上的那一对里面的内容。
+  function scanEmphasis(chunk, re, kind, rest, body) {
+    const source = String(chunk);
+    const parseRest = rest || plainSegments;
+    const parseBody = body || parseRest;
+    const out = [];
+    let cursor = 0;
+    const pushPlain = (piece) => {
+      if (!piece) return;
+      parseRest(piece).forEach((segment) => out.push(segment));
+    };
+    re.lastIndex = 0;
+    let match = re.exec(source);
+    while (match) {
+      const end = match.index + match[0].length;
+      const before = match.index > 0 ? source[match.index - 1] : "";
+      const after = end < source.length ? source[end] : "";
+      if (WORD_CHAR_RE.test(before) || WORD_CHAR_RE.test(after)) {
+        re.lastIndex = match.index + match[1].length;
+      } else {
+        pushPlain(source.slice(cursor, match.index));
+        out.push(wrapSegments(kind, parseBody(match[2] + match[3])));
+        cursor = end;
+        re.lastIndex = end;
+      }
+      match = re.exec(source);
+    }
+    pushPlain(source.slice(cursor));
+    return out;
+  }
+
+  function italicSegments(chunk) {
+    return scanEmphasis(chunk, ITALIC_RE, "italic", plainSegments);
+  }
+
+  function boldSegments(chunk) {
+    return scanEmphasis(chunk, BOLD_RE, "bold", italicSegments);
+  }
+
+  // 长的分隔符先扫：`***x***` 是粗体套斜体，`**x**` 是粗体，`*x*` 是斜体。顺序反了的话
+  // `**x**` 会先被当成一对空的 `*`。
+  function emphasisSegments(chunk) {
+    return scanEmphasis(chunk, STRONG_EM_RE, "bold", boldSegments,
+      (body) => [wrapSegments("italic", italicSegments(body))]);
+  }
+
+  // chunk 的第 index 个字符是不是一行的开头。标题与分隔线只在这种位置成立：
+  // 「foo [1] # bar」里被引用切出来的那半截不是标题，吞掉那个井号就是吞字。
+  function startsLine(source, index, outerAtStart) {
+    if (index === 0) return Boolean(outerAtStart);
+    return source[index - 1] === "\n";
+  }
+
+  // 一行 → 段落。kind 是这一行所属的外层样式（"text" 普通正文，"mark" Ⓐ 栏的黄色高亮）。
+  function pushLine(out, line, kind, atLineStart) {
+    const heading = atLineStart ? HEADING_RE.exec(line) : null;
+    const body = heading ? heading[2] : line;
+    if (!body) return;
+    let segments = emphasisSegments(body);
+    if (heading) segments = [wrapSegments("bold", segments)];
+    if (kind === "mark") {
+      out.push(wrapSegments("mark", segments));
+      return;
+    }
+    segments.forEach((segment) => out.push(segment));
+  }
+
+  // 一段文本里的换行拆成 br 段，每一行再按行内 markdown 解析。
+  function pushMarkdown(out, chunk, kind, atLineStart) {
     const lines = String(chunk).replace(/\r\n/g, "\n").split("\n");
     lines.forEach((line, index) => {
-      if (index > 0) out.push({ kind: "br" });
-      if (line) out.push({ kind, text: line });
+      const lineStart = index > 0 || Boolean(atLineStart);
+      const isRule = lineStart && RULE_RE.test(line);
+      const previous = out.length ? out[out.length - 1] : null;
+      // 分隔线自己就是一个块：前后不再补 br，补了就等于在一条线上下各留一个空行。
+      if (index > 0 && !isRule && !(previous && previous.kind === "hr")) out.push({ kind: "br" });
+      if (isRule) {
+        if (previous && previous.kind === "br") out.pop();
+        out.push({ kind: "hr" });
+        return;
+      }
+      pushLine(out, line, kind, lineStart);
     });
   }
 
-  function pushBold(out, chunk) {
-    let cursor = 0;
-    BOLD_RE.lastIndex = 0;
-    let match = BOLD_RE.exec(chunk);
-    while (match) {
-      if (match.index > cursor) pushLines(out, "text", chunk.slice(cursor, match.index));
-      pushLines(out, "bold", match[1]);
-      cursor = match.index + match[0].length;
-      match = BOLD_RE.exec(chunk);
-    }
-    if (cursor < chunk.length) pushLines(out, "text", chunk.slice(cursor));
-  }
-
-  // 叶子层：[N] 引用上标 → **粗体** → 换行。references 里没有的 [N] 留成纯文本，
+  // 叶子层：[N] 引用上标 → 行内 markdown → 换行。references 里没有的 [N] 留成纯文本，
   // 因为造一个指向不存在条目的锚点，点下去什么都不会发生。
-  function parseLeaf(chunk, valid, out) {
+  function parseLeaf(chunk, valid, out, atLineStart) {
     const source = String(chunk).replace(RESIDUE_RE, "");
     let cursor = 0;
     REF_RE.lastIndex = 0;
@@ -99,28 +197,35 @@
     while (match) {
       const n = Number(match[1]);
       if (valid.has(n)) {
-        if (match.index > cursor) pushBold(out, source.slice(cursor, match.index));
+        if (match.index > cursor) {
+          pushMarkdown(out, source.slice(cursor, match.index), "text", startsLine(source, cursor, atLineStart));
+        }
         out.push({ kind: "ref", n });
         cursor = match.index + match[0].length;
       }
       match = REF_RE.exec(source);
     }
-    if (cursor < source.length) pushBold(out, source.slice(cursor));
+    if (cursor < source.length) {
+      pushMarkdown(out, source.slice(cursor), "text", startsLine(source, cursor, atLineStart));
+    }
     return out;
   }
 
-  function parseAnnotations(chunk, valid, out) {
+  function parseAnnotations(chunk, valid, out, atLineStart) {
     const source = String(chunk);
     let cursor = 0;
     ANNOTATION_RE.lastIndex = 0;
     let match = ANNOTATION_RE.exec(source);
     while (match) {
-      if (match.index > cursor) parseLeaf(source.slice(cursor, match.index), valid, out);
-      out.push({ kind: match[1].toLowerCase(), children: parseLeaf(match[2], valid, []) });
+      if (match.index > cursor) {
+        parseLeaf(source.slice(cursor, match.index), valid, out, startsLine(source, cursor, atLineStart));
+      }
+      // 注解的正文（〚NOTE …〛 里面那段）永远是行内的，标题/分隔线在那里不成立。
+      out.push({ kind: match[1].toLowerCase(), children: parseLeaf(match[2], valid, [], false) });
       cursor = match.index + match[0].length;
       match = ANNOTATION_RE.exec(source);
     }
-    parseLeaf(source.slice(cursor), valid, out);
+    parseLeaf(source.slice(cursor), valid, out, startsLine(source, cursor, atLineStart));
     return out;
   }
 
@@ -133,12 +238,19 @@
     BLOCK_RE.lastIndex = 0;
     let match = BLOCK_RE.exec(source);
     while (match) {
-      if (match.index > cursor) parseAnnotations(source.slice(cursor, match.index), valid, out);
-      out.push({ kind: BLOCK_KINDS[match[1]], children: parseAnnotations(match[2], valid, []) });
+      if (match.index > cursor) {
+        parseAnnotations(source.slice(cursor, match.index), valid, out, startsLine(source, cursor, true));
+      }
+      // 〚NEW〛 自己在行首时，它包住的那一段也算从行首开始 —— 整行被改写的标题得照常
+      // 认出来；在行中间的 〚NEW〛 则不行。
+      out.push({
+        kind: BLOCK_KINDS[match[1]],
+        children: parseAnnotations(match[2], valid, [], startsLine(source, match.index, true)),
+      });
       cursor = match.index + match[0].length;
       match = BLOCK_RE.exec(source);
     }
-    parseAnnotations(source.slice(cursor), valid, out);
+    parseAnnotations(source.slice(cursor), valid, out, startsLine(source, cursor, true));
     return out;
   }
 
@@ -157,7 +269,7 @@
   }
 
   function parseClean(value, references) {
-    return parseLeaf(stripToClean(value), refNumbers(references), []);
+    return parseLeaf(stripToClean(value), refNumbers(references), [], true);
   }
 
   // Ⓐ 栏：逐字原文，a_marks 里的子串套 <mark>。照历史 hilite()，每个 mark 只标第一处；
@@ -182,18 +294,26 @@
     return ranges.sort((a, b) => a.start - b.start);
   }
 
-  // Ⓐ 栏按历史行为**不**渲染 **：这一栏承诺的是 LLM 逐字原文，连它的 markdown 残留
-  // 也算原文的一部分。
+  // Ⓐ 栏也渲染行内 markdown（2026-10-11 改）。历史行为是原样显示 `**`，理由是「这一栏
+  // 承诺逐字原文」—— 但模型写的 markdown 本来就是给人读的排版，不渲染它，屏幕上露出来的
+  // 就是一堆星号和井号。逐字的承诺由「一个字都不吞」来守：配不成对的星号照原样显示。
+  //
+  // 高亮（a_marks）切出来的每一段各自解析，所以跨越高亮边界的 `**` 配不成对，两个星号
+  // 原样留在屏幕上 —— 宁可露出标记，也不能让高亮和加粗互相错位。
   function parseAnswer(value, marks) {
     const source = text(value);
     const out = [];
     let cursor = 0;
     markRanges(source, marks).forEach((range) => {
-      if (range.start > cursor) pushLines(out, "text", source.slice(cursor, range.start));
-      pushLines(out, "mark", source.slice(range.start, range.end));
+      if (range.start > cursor) {
+        pushMarkdown(out, source.slice(cursor, range.start), "text", startsLine(source, cursor, true));
+      }
+      pushMarkdown(out, source.slice(range.start, range.end), "mark", startsLine(source, range.start, true));
       cursor = range.end;
     });
-    if (cursor < source.length) pushLines(out, "text", source.slice(cursor));
+    if (cursor < source.length) {
+      pushMarkdown(out, source.slice(cursor), "text", startsLine(source, cursor, true));
+    }
     return out;
   }
 

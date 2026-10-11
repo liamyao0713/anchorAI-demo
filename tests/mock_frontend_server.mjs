@@ -231,6 +231,59 @@ function mockChatResponse(requestBody) {
   if (/anchor review|anchor stream/i.test(question)) {
     return okResponse({ ...anchorReviewFixture, question });
   }
+  if (/anchor shortc/i.test(question)) {
+    // 栏高用的情形：A 很长，Ⓒ 只剩一句话（校正未完成、没有卡片也没有引用核验表）。
+    // 等高对到最短那一栏时，这一情形会把 Ⓐ 压进 460px 的框里 —— 用户报的那个 bug。
+    const review = anchorReviewFixture.anchor_review;
+    return okResponse({
+      ...anchorReviewFixture,
+      question,
+      anchor_review: {
+        ...review,
+        completed: false,
+        fallback_reason: "LLM correction returned invalid JSON; Anchor fell back to the raw answer.",
+        b_track: review.a_text,
+        b_clean: review.a_text,
+        cards: [],
+        citation_checks: [],
+        references: [],
+        validation: { minimal_diff_ok: false, pmid_whitelist_ok: true, issues: ["llm_json_invalid"] },
+      },
+    });
+  }
+  if (/anchor markdown/i.test(question)) {
+    // markdown 用的情形：标题、分隔线、斜体、粗体 —— 2026-10-11 之前这些字符直接
+    // 露在屏幕上。a_text 与 b_track 用同一段，这样 Ⓐ 和 Ⓑ 两栏能一眼对照。
+    const review = anchorReviewFixture.anchor_review;
+    const md = [
+      "### Evidence summary",
+      "",
+      "**Nerandomilast (BI 1015550)** is an oral *preferential* PDE4B inhibitor.",
+      "",
+      "---",
+      "",
+      "#### Key numbers",
+      "- **FVC decline (12 weeks):** –5.6 mL vs –79.7 mL with placebo (P=0.002).",
+      "- *Mortality:* the trial was not powered for it; p<0.05* was never claimed.",
+      "- Reported in ***NEJM*** 2022; see also _Lancet Respir Med_ 2023.",
+      "",
+      "***",
+      "",
+      "###### GRADE",
+      "**GRADE: moderate** — short duration, 2*3*4 arms is a made-up number, my__var__name stays literal.",
+    ].join("\n");
+    return okResponse({
+      ...anchorReviewFixture,
+      question,
+      anchor_review: {
+        ...review,
+        a_text: md,
+        a_marks: ["**GRADE: moderate**", "–5.6 mL"],
+        b_track: md.replace("is an oral", "〚DEL〛is an oral〚/DEL〛〚NEW〛is an **oral**〚/NEW〛"),
+        b_clean: md,
+      },
+    });
+  }
   if (/anchor fallback/i.test(question)) {
     // 校正未完成：照合约 b_track = b_clean = A 原文，cards 可空，引用核验表仍然给出。
     const review = anchorReviewFixture.anchor_review;

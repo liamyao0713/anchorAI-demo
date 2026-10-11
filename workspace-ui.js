@@ -371,6 +371,8 @@
       reviewProgressCitations: "Checking citations",
       reviewProgressCorrection: "Applying corrections",
       reviewStreamingAria: "The raw answer is still being written",
+      // 超过上限的那一栏在栏内滚动。Mac 的悬浮滚动条平时不显示，所以得说一句。
+      reviewScrollMore: "↓ Scroll for more",
     },
     zh: {
       documentTitle: "AnchorAI | 证据核验工作台",
@@ -692,6 +694,7 @@
       reviewProgressCitations: "正在核验引用",
       reviewProgressCorrection: "正在矫正",
       reviewStreamingAria: "原始回答还在生成",
+      reviewScrollMore: "↓ 向下滚动查看更多",
     },
   };
 
@@ -830,6 +833,11 @@
       // 历史 v7Slide：滑块只切 Ⓑ 栏的 track/clean，不碰工作台原来的 clean/tracked 状态——
       // 两套视图各管自己的那一份，混用会让其中一个的按钮和内容对不上。
       refs.reviewSwitch.addEventListener("change", applyReviewView);
+
+      // 栏内滚到底时「向下滚动查看更多」要消失，不然它会一直指着已经没有内容的下方。
+      refs.reviewColumnBodies.forEach((body) => {
+        body.addEventListener("scroll", () => updateReviewScrollHint(body), { passive: true });
+      });
 
       // 历史是 resize 防抖 150ms；等高是按视口高算的，窗口一变就得重算。
       let resizeTimer = null;
@@ -2128,11 +2136,13 @@
     // 段落结构 → DOM。anchor-review.js 不产出 HTML 字符串，所以这里全部走
     // createElement / textContent：正文是模型写的，不该有任何一步把它当标记解析。
     const REVIEW_SEGMENT_TAG = {
-      bold: "b", mark: "mark", del: "del", ins: "ins", note: "span", up: "span", hl: "span",
+      bold: "b", italic: "i", hr: "hr",
+      mark: "mark", del: "del", ins: "ins", note: "span", up: "span", hl: "span",
     };
     // class 与 title 照搬历史 build_demo_v6.py 的 `_render_marks_in_prose`。
     const REVIEW_SEGMENT_CLASS = {
       del: "diff-del", ins: "diff-add", note: "diff-note", up: "diff-up", hl: "diff-hl",
+      hr: "v7-rule",
     };
     const REVIEW_SEGMENT_TITLE = {
       del: "Anchor deleted (LLM original wrong-text)",
@@ -2410,10 +2420,30 @@
       window.setTimeout(equalizeReviewColumns, 0);
     }
 
-    // 历史 v7EqualizeCols：三栏统一对到**最短**那栏的高度，各自内部滚动，上限是
-    // 视口的 82%、下限 460px。窄过 1100px 时退成单列，这时让每栏取自然高度。
+    // 三栏等高：对到**最高**那一栏，上限视口的 82%、下限 460px。窄过 1100px 时退成
+    // 单列，这时让每栏取自然高度。
+    //
+    // 历史 v7EqualizeCols 对的是**最短**那一栏。那份页面三栏是预渲染的、长度相当；
+    // 这里不是：校正未完成时 Ⓒ 栏只有一句话，于是三栏一起被压到下限 460px，长出来的
+    // Ⓐ 大半藏在栏内滚动里，而 Mac 的悬浮滚动条平时不显示 —— 屏幕上看起来就是
+    // 「A 框显示不全」（用户 2026-10-11）。实测一次正常运行：A 750px 恰好是最短的，
+    // B 被藏 271px、C 被藏 298px。
     const REVIEW_MIN_HEIGHT = 460;
     const REVIEW_VIEWPORT_SHARE = 0.82;
+
+    function reviewScrollHint(body) {
+      return body.parentElement ? body.parentElement.querySelector(".v7-col-more") : null;
+    }
+
+    // 只有真的超过上限的那一栏才滚，并且底部挂一条渐隐和一句「向下滚动查看更多」：
+    // 不说一声的话，被截断的那一半看起来就是没显示出来。滚到底就把提示撤掉。
+    function updateReviewScrollHint(body) {
+      const hint = reviewScrollHint(body);
+      if (!hint) return;
+      const scrollable = body.scrollHeight - body.clientHeight;
+      hint.hidden = !body.classList.contains("v7-col-scroll") ||
+        scrollable <= 2 || body.scrollTop >= scrollable - 2;
+    }
 
     function equalizeReviewColumns() {
       const bodies = refs.reviewColumnBodies;
@@ -2421,16 +2451,22 @@
       bodies.forEach((body) => {
         body.style.height = "";
         body.style.overflowY = "";
+        body.classList.remove("v7-col-scroll");
+        updateReviewScrollHint(body);
       });
-      // 占位期间不对齐：最短的那栏是占位块，Ⓐ 会被关进一个 460px 的框里，正在生成的
-      // 那几行当场滚出视野——而这段时间屏幕上唯一在动的就是它。
+      // 占位期间不对齐：Ⓑ/Ⓒ 还是占位块，这时候定下来的高度和一会儿的正文没关系，
+      // 而这段时间屏幕上唯一在动的就是正在生成的 Ⓐ。
       if (!reviewActive || reviewPending || window.innerWidth <= 1100 || bodies.length < 2) return;
-      const shortest = bodies.reduce((min, body) => Math.min(min, body.scrollHeight), Infinity);
+      const tallest = bodies.reduce((max, body) => Math.max(max, body.scrollHeight), 0);
       const cap = Math.round(window.innerHeight * REVIEW_VIEWPORT_SHARE);
-      const height = Math.max(REVIEW_MIN_HEIGHT, Math.min(shortest, cap));
+      const height = Math.max(REVIEW_MIN_HEIGHT, Math.min(tallest, cap));
       bodies.forEach((body) => {
         body.style.height = `${height}px`;
-        body.style.overflowY = "auto";
+        // 装得下的栏多出来的高度留白：给它一条永远滚不动的滚动条只会让人以为还有内容。
+        const overflows = body.scrollHeight > height + 1;
+        body.style.overflowY = overflows ? "scroll" : "hidden";
+        body.classList.toggle("v7-col-scroll", overflows);
+        updateReviewScrollHint(body);
       });
     }
 

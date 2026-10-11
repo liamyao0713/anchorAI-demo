@@ -129,18 +129,139 @@ function kinds(segments) {
   assert.deepEqual(Review.parseTrack("claim [1]", null), [{ kind: "text", text: "claim [1]" }]);
 }
 
-// ---------------------------------------------------------------- 粗体与换行
+// ---------------------------------------------------------------- 行内 markdown
+//
+// 模型写的就是 markdown。2026-10-11 之前 Ⓐ 栏按「逐字原文」原样显示它，于是屏幕上
+// 露出来的是 `**`、`###`、`---` 本身。现在三个视图都渲染行内 markdown，「逐字」改由
+// 「一个字都不吞」来守：配不成对、不在词边界的星号与下划线照原样显示。
 
 {
-  // Ⓑ 栏渲染 **粗体**（历史 corr_md）。
-  assert.deepEqual(Review.parseTrack("plain **bold** plain", []), [
+  // 三个视图用同一套规则：Ⓐ 原文、Ⓑ 修订、Ⓑ 净版。
+  const bolded = [
     { kind: "text", text: "plain " },
     { kind: "bold", text: "bold" },
     { kind: "text", text: " plain" },
-  ]);
-  // Ⓐ 栏相反，按历史行为把 ** 原样显示：那一栏承诺的是逐字原文。
+  ];
+  assert.deepEqual(Review.parseTrack("plain **bold** plain", []), bolded);
+  assert.deepEqual(Review.parseAnswer("plain **bold** plain", []), bolded);
+  assert.deepEqual(Review.parseClean("plain **bold** plain", []), bolded);
   assert.deepEqual(Review.parseAnswer("**GRADE: moderate**", []),
-    [{ kind: "text", text: "**GRADE: moderate**" }]);
+    [{ kind: "bold", text: "GRADE: moderate" }]);
+  assert.deepEqual(Review.parseAnswer("__strong__", []), [{ kind: "bold", text: "strong" }]);
+}
+
+{
+  // 斜体，含 `_下划线_` 的写法。
+  assert.deepEqual(Review.parseAnswer("in *Lancet* 2024", []), [
+    { kind: "text", text: "in " },
+    { kind: "italic", text: "Lancet" },
+    { kind: "text", text: " 2024" },
+  ]);
+  assert.deepEqual(Review.parseTrack("_NEJM_", []), [{ kind: "italic", text: "NEJM" }]);
+  // `***x***` 是粗体套斜体，不是「粗体 + 一个落单的星号」。
+  assert.deepEqual(Review.parseAnswer("***both***", []),
+    [{ kind: "bold", children: [{ kind: "italic", text: "both" }] }]);
+}
+
+{
+  // 误伤清单。这些星号/下划线一个都不许动：改了 `p<0.05*`，就是改了模型写的数值。
+  for (const literal of [
+    "p<0.05*",                 // 落单的星号
+    "a ** b ** c",             // 首尾贴着空格，不成对
+    "2*3*4",                   // 乘号在词里面
+    "my__var__name",           // 单词内部的下划线
+    "**unclosed bold",         // 只有开头
+    "FVC *",                   // 行尾一个星号
+  ]) {
+    assert.deepEqual(Review.parseAnswer(literal, []), [{ kind: "text", text: literal }],
+      `${literal} 必须原样显示`);
+    assert.equal(flatten(Review.parseTrack(literal, [])), literal, `${literal} 在 Ⓑ 栏也原样显示`);
+  }
+  // 强调不跨行：两行各自落单的星号不配成一对，否则两行会被并成一行。
+  assert.equal(flatten(Review.parseAnswer("开头 *一行\n另一行* 结尾", [])), "开头 *一行\n另一行* 结尾");
+}
+
+{
+  // 行首 #～###### 的标题：去掉井号，整行加粗。
+  assert.deepEqual(Review.parseAnswer("### Summary", []), [{ kind: "bold", text: "Summary" }]);
+  assert.deepEqual(Review.parseAnswer("###### deep", []), [{ kind: "bold", text: "deep" }]);
+  assert.deepEqual(Review.parseAnswer("# 标题里的 **粗体**", []),
+    [{ kind: "bold", children: [{ kind: "text", text: "标题里的 " }, { kind: "bold", text: "粗体" }] }]);
+  // 七个井号不是标题；`#tag` 没有空格也不是；行中间的井号更不是。
+  for (const literal of ["####### too deep", "#tag", "see # below", "C#"]) {
+    assert.deepEqual(Review.parseAnswer(literal, []), [{ kind: "text", text: literal }],
+      `${literal} 不是标题`);
+  }
+  // 引用上标切出来的那半截不在行首：那里的井号不许当标题吃掉。
+  assert.deepEqual(Review.parseClean("claim [1] # 不是标题", [{ n: 1 }]), [
+    { kind: "text", text: "claim " },
+    { kind: "ref", n: 1 },
+    { kind: "text", text: " # 不是标题" },
+  ]);
+}
+
+{
+  // 整行只有 ---/***/___ 的分隔线渲染成一条线，字符不再露出来。前后不补 br：
+  // 补了就等于在一条线上下各留一个空行。
+  for (const rule of ["---", "***", "___", "- - -", "-----"]) {
+    assert.deepEqual(Review.parseAnswer(rule, []), [{ kind: "hr" }], `${rule} 必须成为分隔线`);
+  }
+  assert.deepEqual(Review.parseAnswer("上\n---\n下", []), [
+    { kind: "text", text: "上" }, { kind: "hr" }, { kind: "text", text: "下" },
+  ]);
+  assert.deepEqual(Review.parseTrack("---", []), [{ kind: "hr" }]);
+  // 列表项与带文字的行不是分隔线。
+  assert.deepEqual(Review.parseAnswer("- item", []), [{ kind: "text", text: "- item" }]);
+  assert.equal(flatten(Review.parseAnswer("--- 还有话", [])), "--- 还有话");
+}
+
+{
+  // 列表行保持现在的换行和文字，不改成真正的列表元素（这一轮明确不做）。
+  assert.deepEqual(Review.parseAnswer("- a\n1. b", []), [
+    { kind: "text", text: "- a" }, { kind: "br" }, { kind: "text", text: "1. b" },
+  ]);
+}
+
+{
+  // 与现有标记共存。
+  // 高亮里面的粗体照常加粗（样例的 a_marks 里就有一条 "**GRADE: moderate**"）。
+  assert.deepEqual(Review.parseAnswer("**GRADE: moderate** rest", ["**GRADE: moderate**"]), [
+    { kind: "mark", children: [{ kind: "bold", text: "GRADE: moderate" }] },
+    { kind: "text", text: " rest" },
+  ]);
+  // 高亮里没有 markdown 时结构不变，还是老的 { kind, text }。
+  assert.deepEqual(Review.parseAnswer("say dose now", ["dose"]), [
+    { kind: "text", text: "say " }, { kind: "mark", text: "dose" }, { kind: "text", text: " now" },
+  ]);
+  // 加粗跨越高亮边界：两段各自解析，星号配不成对，原样留在屏幕上，不吞字也不错位。
+  const crossing = Review.parseAnswer("**粗 高亮** 尾", ["高亮**"]);
+  assert.equal(flatten(crossing), "**粗 高亮** 尾", "跨边界的星号一个都不能少");
+  assert.equal(kinds(crossing).has("bold"), false, "跨越高亮边界的 ** 不算一对");
+
+  // DEL/NEW/NOTE/UP/HL 里面的粗体、斜体照常渲染。
+  assert.deepEqual(Review.parseTrack("〚DEL〛*old*〚/DEL〛〚NEW〛**new**〚/NEW〛", []), [
+    { kind: "del", children: [{ kind: "italic", text: "old" }] },
+    { kind: "ins", children: [{ kind: "bold", text: "new" }] },
+  ]);
+  assert.deepEqual(Review.parseTrack("〚NOTE see *Lancet*〛", []), [
+    { kind: "note", children: [{ kind: "text", text: "see " }, { kind: "italic", text: "Lancet" }] },
+  ]);
+  // [N] 引用上标和粗体在同一段里各管各的。
+  assert.deepEqual(Review.parseTrack("**FVC** 下降 [1]。", [{ n: 1 }]), [
+    { kind: "bold", text: "FVC" },
+    { kind: "text", text: " 下降 " },
+    { kind: "ref", n: 1 },
+    { kind: "text", text: "。" },
+  ]);
+}
+
+{
+  // 样例的 Ⓐ 原文：18 个星号（9 对粗体）必须一个都不剩在屏幕上。
+  const answer = Review.parseAnswer(review.a_text, review.a_marks);
+  assert.ok(flatten(answer).indexOf("**") < 0, "样例的 A 原文不该再露出 **");
+  assert.ok([...kinds(answer)].includes("bold"), "样例的 A 原文必须解析出粗体");
+  assert.equal(flatten(answer), review.a_text.replace(/\*\*/g, ""),
+    "除了成对的 ** 本身，A 原文一个字都不许变");
 }
 
 {
@@ -384,8 +505,8 @@ function kinds(segments) {
   assert.deepEqual(fallback.cards, []);
   // 程序算出的引用核验表在未完成时仍然给出（合约要求），所以 Ⓒ 栏不会整个空着。
   assert.equal(fallback.citationChecks.length, 6);
-  // A 原文在 Ⓑ 栏里照常显示，一个字都不丢。
-  assert.equal(flatten(Review.parseTrack(fallback.bTrack, fallback.references)).replace(/\*\*/g, ""),
+  // A 原文在 Ⓑ 栏里照常显示，一个字都不丢（成对的 ** 变成加粗，所以两边都脱掉它）。
+  assert.equal(flatten(Review.parseTrack(fallback.bTrack, fallback.references)),
     fallback.aText.replace(/\*\*/g, ""));
 }
 

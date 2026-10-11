@@ -40,6 +40,8 @@
   background: #fff;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+  /* .v7-col-more 的渐隐贴在栏底（栏身是 position: relative 的定位参照）。 */
+  position: relative;
 }
 
 #aw-anchor-review .v7-col-h {
@@ -87,13 +89,51 @@
   font-size: 13.5px;
   line-height: 1.62;
   box-sizing: border-box;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
 }
 
 #aw-anchor-review .v7-col-body::-webkit-scrollbar { width: 8px; }
 #aw-anchor-review .v7-col-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 #aw-anchor-review .v7-col-body::-webkit-scrollbar-track { background: transparent; }
+
+/* scrollbar-width / scrollbar-color 是给 Firefox 的，必须关在 @supports 里：Chrome 121
+ * 起只要在同一个元素上见到这两条，就整个忽略上面那三条 ::-webkit-scrollbar 规则，退回
+ * macOS 的**悬浮**滚动条 —— 不滚的时候它根本不画，于是一栏被截断了也看不出来。实测
+ * （2026-10-11 无头 Chrome）：两条标准属性在时 offsetWidth - clientWidth = 0。 */
+@supports not selector(::-webkit-scrollbar) {
+  #aw-anchor-review .v7-col-body { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+}
+
+/* 等高之后超出上限的那一栏在栏内滚动（equalizeReviewColumns 加 .v7-col-scroll）。
+ * overflow-y: scroll 而不是 auto，再加上固定留出的滚动条沟槽：Mac 的悬浮滚动条平时
+ * 不显示，用 auto 的话这一栏看起来和装得下的栏没有任何区别 —— 用户 2026-10-11 报的
+ * 「A 框显示不全」就是这么来的。沟槽对三栏一视同仁，所以正文宽度不会因为谁在滚而差 8px。 */
+#aw-anchor-review .v7-col-body { scrollbar-gutter: stable; }
+#aw-anchor-review .v7-col-body.v7-col-scroll { overflow-y: scroll; }
+
+/* 栏底的渐隐 + 一句「向下滚动查看更多」。pointer-events: none 让它不挡滚轮和选中；
+ * 右边让开滚动条沟槽，不然渐隐会糊住滚动条下半截。 */
+#aw-anchor-review .v7-col-more {
+  position: absolute;
+  left: 1px;
+  right: 12px;
+  bottom: 1px;
+  padding: 28px 10px 7px;
+  pointer-events: none;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  border-radius: 0 0 11px 11px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, .96) 46%, #fff 62%);
+}
+
+/* markdown 的分隔线（整行 ---/***/___）。露出字符比画一条线糟：那是模型的排版，不是正文。 */
+#aw-anchor-review .v7-rule {
+  height: 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 11px 0;
+}
 
 #aw-anchor-review .v7-note {
   font-size: 11.5px;

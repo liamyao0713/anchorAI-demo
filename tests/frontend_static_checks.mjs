@@ -794,7 +794,7 @@ assert.match(anchorReviewJs, /parseAnswer/, "the renderer must expose the Ⓐ-co
 // 接线：三栏的渲染、等高内滚、滑块、以及语言/窗口变化后的重算。
 assert.match(workspaceUiJs, /renderAnchorReview\(\)/, "the workspace must render the review columns");
 assert.match(workspaceUiJs, /currentReview\(\)/, "the workspace must read anchor_review off the response");
-assert.match(workspaceUiJs, /equalizeReviewColumns/, "the columns must be equalised to the shortest one");
+assert.match(workspaceUiJs, /equalizeReviewColumns/, "the columns must be equalised");
 assert.match(workspaceUiJs, /REVIEW_VIEWPORT_SHARE = 0\.82/, "the height cap must match the historical 82% of the viewport");
 assert.match(workspaceUiJs, /REVIEW_MIN_HEIGHT = 460/, "the height floor must match the historical 460px");
 assert.match(workspaceUiJs, /setTimeout\(equalizeReviewColumns, 150\)/,
@@ -1436,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261011-a-title/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261011-col-render/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1474,4 +1474,89 @@ console.log("streaming A + pending-columns checks passed");
   assert.match(uiSrc, /reviewTitleAPasted: "Uncorrected · pasted answer"/, "en pasted title");
   assert.ok(!/t\("reviewTitleA", \{ model: baseModel \}\)/.test(uiSrc), "A title must not print the raw model id");
   console.log("A-column title checks passed");
+}
+
+// 栏高与行内 markdown（修改 4，2026-10-11）。
+//
+// 用户报「A 框显示不全」。两个原因：栏高对到**最短**那一栏（校正未完成时 Ⓒ 只有一句
+// 话，三栏一起被压到下限 460px，长出来的 Ⓐ 藏在栏内滚动里，而 Mac 的悬浮滚动条平时
+// 不显示）；以及 Ⓐ/Ⓑ 根本不渲染 markdown，`**`/`###`/`---` 直接露在屏幕上。
+{
+  const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
+  const reviewJs = readFileSync(new URL("../anchor-review.js", import.meta.url), "utf8");
+  const cssSrc = readFileSync(new URL("../anchor-review.css", import.meta.url), "utf8");
+  const htmlSrc = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+
+  const equalize = /function equalizeReviewColumns\(\) \{[\s\S]*?\n    \}/.exec(uiSrc);
+  assert.ok(equalize, "equalizeReviewColumns must exist");
+  // 对到最高那一栏，上限仍是视口的 82%、下限 460px。
+  assert.match(equalize[0], /Math\.max\(max, body\.scrollHeight\)/,
+    "the columns must be equalised to the tallest one");
+  assert.doesNotMatch(equalize[0], /Math\.min\(min, body\.scrollHeight\)/,
+    "equalising to the shortest column is what hid most of Ⓐ");
+  assert.match(equalize[0], /Math\.max\(REVIEW_MIN_HEIGHT, Math\.min\(tallest, cap\)\)/,
+    "the tallest column must still be capped at the viewport share and floored at 460px");
+  // 装得下的栏留白，超出上限的栏才滚，并且滚动条固定留出来（不靠系统的悬浮滚动条）。
+  assert.match(equalize[0], /const overflows = body\.scrollHeight > height \+ 1;/,
+    "only a column that really overflows may scroll");
+  assert.match(equalize[0], /overflows \? "scroll" : "hidden"/,
+    "an overflowing column must keep a real scrollbar rather than an overlay one");
+  assert.match(equalize[0], /classList\.toggle\("v7-col-scroll", overflows\)/,
+    "the overflow state must be exposed to CSS");
+  assert.match(equalize[0], /updateReviewScrollHint\(body\)/, "the more-below hint must follow the fit");
+  // 单列（≤1100px）与流式占位期间照旧不限高。
+  assert.match(equalize[0], /if \(!reviewActive \|\| reviewPending \|\| window\.innerWidth <= 1100/,
+    "the single-column layout and the placeholder must stay unbounded");
+
+  // 「向下滚动查看更多」：中英两套，滚到底就撤掉。
+  assert.equal((uiSrc.match(/\n\s+reviewScrollMore:/g) || []).length, 2,
+    "reviewScrollMore must exist in both languages");
+  assert.match(uiSrc, /reviewScrollMore: "↓ 向下滚动查看更多"/, "zh scroll hint");
+  assert.match(uiSrc, /reviewScrollMore: "↓ Scroll for more"/, "en scroll hint");
+  assert.match(uiSrc, /function updateReviewScrollHint\(body\) \{[\s\S]*?body\.scrollTop >= scrollable - 2/,
+    "the hint must disappear once the column is scrolled to the bottom");
+  assert.match(uiSrc, /body\.addEventListener\("scroll", \(\) => updateReviewScrollHint\(body\)/,
+    "scrolling a column must re-check its hint");
+  assert.equal((htmlSrc.match(/class="v7-col-more" data-i18n="reviewScrollMore" hidden/g) || []).length, 3,
+    "each of the three columns needs its own hint, translated by the static pass");
+  assert.match(cssSrc, /\.v7-col-body \{ scrollbar-gutter: stable; \}/,
+    "the scrollbar gutter must be reserved so the three columns stay the same width");
+  assert.match(cssSrc, /\.v7-col-body\.v7-col-scroll \{ overflow-y: scroll; \}/,
+    "the overflowing column must show a persistent scrollbar");
+  // Chrome 121 起，同一个元素上只要出现 scrollbar-width / scrollbar-color，它就整个忽略
+  // ::-webkit-scrollbar，退回 macOS 的悬浮滚动条 —— 不滚的时候根本不画。实测（2026-10-11
+  // 无头 Chrome）：两条标准属性在时 offsetWidth - clientWidth = 0，关进 @supports 后是 8。
+  assert.match(cssSrc, /@supports not selector\(::-webkit-scrollbar\) \{\n  #aw-anchor-review \.v7-col-body \{ scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; \}/,
+    "the Firefox-only scrollbar properties must stay behind @supports");
+  const cssNoComments = cssSrc.replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(cssNoComments.slice(0, cssNoComments.indexOf("@supports not selector(::-webkit-scrollbar)")), /scrollbar-color/,
+    "nothing outside that @supports may set scrollbar-color, or Chrome drops the ::-webkit-scrollbar rules");
+  assert.match(cssSrc, /\.v7-col-more \{[\s\S]*?linear-gradient/, "the hint must sit on a fade-out");
+  assert.match(cssSrc, /\.v7-col-more \{[\s\S]*?pointer-events: none/, "the hint must not eat the scroll");
+  assert.match(cssSrc, /\.v7-col \{[\s\S]*?position: relative/, "the hint needs the column as its origin");
+
+  // 行内 markdown 的解析在数据层，渲染照旧 createElement/textContent。
+  for (const [name, why] of [
+    ["STRONG_EM_RE", "***bold italic*** must parse as one pair, not bold plus a stray star"],
+    ["BOLD_RE", "**bold** / __bold__ must render"],
+    ["ITALIC_RE", "*italic* / _italic_ must render"],
+    ["HEADING_RE", "a leading #..###### must become a bold line"],
+    ["RULE_RE", "a --- / *** / ___ line must become a rule"],
+    ["WORD_CHAR_RE", "emphasis must require a word boundary so p<0.05* and 2*3*4 survive"],
+  ]) {
+    assert.ok(reviewJs.includes(name), `${name} missing: ${why}`);
+  }
+  assert.match(reviewJs, /out\.push\(\{ kind: "hr" \}\)/, "the rule must be a segment, not a character");
+  assert.match(reviewJs, /function startsLine\(/,
+    "headings and rules are whole-line syntax and must only be read at a real line start");
+  // Ⓐ 栏不再把 markdown 当逐字原文原样显示。
+  assert.doesNotMatch(reviewJs, /Ⓐ 栏按历史行为\*\*不\*\*渲染/,
+    "the Ⓐ column must no longer leave ** on the screen");
+  assert.match(uiSrc, /bold: "b", italic: "i", hr: "hr",/, "the new segment kinds need tags");
+  assert.match(cssSrc, /\.v7-rule \{/, "the rule must be styled");
+  // 正文还是模型写的：这一条规矩不许因为渲染了 markdown 就松掉。
+  assert.doesNotMatch(reviewJs, /\.innerHTML|insertAdjacentHTML/,
+    "the markdown layer must stay a data layer");
+
+  console.log("column-fit + inline-markdown checks passed");
 }
