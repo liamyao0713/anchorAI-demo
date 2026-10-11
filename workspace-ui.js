@@ -845,6 +845,10 @@
         window.clearTimeout(resizeTimer);
         resizeTimer = window.setTimeout(equalizeReviewColumns, 150);
       });
+      // 网页字体加载完会让文字重新折行、栏变高：那时再对齐一次。
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => equalizeReviewColumns()).catch(() => {});
+      }
 
       refs.panelTabs.forEach((button) => {
         button.addEventListener("click", () => {
@@ -2440,9 +2444,10 @@
     function updateReviewScrollHint(body) {
       const hint = reviewScrollHint(body);
       if (!hint) return;
+      // 按实际有没有藏着的内容判断，而不是看量高那一刻打的 class：内容事后长出来时
+      // 提示也要跟着出现。只在三栏对齐生效时显示（单列、占位期间没有固定高度）。
       const scrollable = body.scrollHeight - body.clientHeight;
-      hint.hidden = !body.classList.contains("v7-col-scroll") ||
-        scrollable <= 2 || body.scrollTop >= scrollable - 2;
+      hint.hidden = !body.style.height || scrollable <= 2 || body.scrollTop >= scrollable - 2;
     }
 
     function equalizeReviewColumns() {
@@ -2462,9 +2467,11 @@
       const height = Math.max(REVIEW_MIN_HEIGHT, Math.min(tallest, cap));
       bodies.forEach((body) => {
         body.style.height = `${height}px`;
-        // 装得下的栏多出来的高度留白：给它一条永远滚不动的滚动条只会让人以为还有内容。
+        // 装得下的栏多出来的高度留白。不用 hidden：量高之后内容还可能再长一点（网页字体
+        // 加载完、文字重新折行），hidden 会把多出来的那一截直接切掉且滚不到——线上
+        // 2026-10-11 实测 Ⓑ 被切掉 23px。auto 在装得下时不出滚动条，长出来了就能滚。
         const overflows = body.scrollHeight > height + 1;
-        body.style.overflowY = overflows ? "scroll" : "hidden";
+        body.style.overflowY = overflows ? "scroll" : "auto";
         body.classList.toggle("v7-col-scroll", overflows);
         updateReviewScrollHint(body);
       });

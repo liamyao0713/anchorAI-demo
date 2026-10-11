@@ -1436,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261011-col-render/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261011-col-fit/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1499,8 +1499,9 @@ console.log("streaming A + pending-columns checks passed");
   // 装得下的栏留白，超出上限的栏才滚，并且滚动条固定留出来（不靠系统的悬浮滚动条）。
   assert.match(equalize[0], /const overflows = body\.scrollHeight > height \+ 1;/,
     "only a column that really overflows may scroll");
-  assert.match(equalize[0], /overflows \? "scroll" : "hidden"/,
-    "an overflowing column must keep a real scrollbar rather than an overlay one");
+  assert.match(equalize[0], /overflows \? "scroll" : "auto"/,
+    "an overflowing column must keep a real scrollbar, and a fitting one must still scroll if its content grows later");
+  assert.doesNotMatch(equalize[0], /"hidden"/, "a column must never hide content it cannot scroll to");
   assert.match(equalize[0], /classList\.toggle\("v7-col-scroll", overflows\)/,
     "the overflow state must be exposed to CSS");
   assert.match(equalize[0], /updateReviewScrollHint\(body\)/, "the more-below hint must follow the fit");
@@ -1559,4 +1560,12 @@ console.log("streaming A + pending-columns checks passed");
     "the markdown layer must stay a data layer");
 
   console.log("column-fit + inline-markdown checks passed");
+}
+
+// 内容事后长高（字体加载等）时提示与滚动都要跟上（线上 2026-10-11：Ⓑ 被 overflow:hidden 切掉 23px）。
+{
+  const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
+  assert.match(uiSrc, /document\.fonts\.ready\.then\(\(\) => equalizeReviewColumns\(\)\)/, "re-equalize after web fonts load");
+  assert.match(uiSrc, /hint\.hidden = !body\.style\.height \|\| scrollable <= 2/, "the hint must follow the real overflow");
+  console.log("late-growth column checks passed");
 }
