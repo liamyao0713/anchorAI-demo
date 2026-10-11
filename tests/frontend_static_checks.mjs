@@ -732,7 +732,7 @@ assert.match(workspaceUiJs, /reviewTitleA: "未矫正 · \{model\} 原话"/,
   "the Ⓐ header must name the model that wrote the answer");
 // Ⓐ 点名的必须是写出原话的那个模型。anchor_review.model 是 Anchor 的**校正**模型，
 // 用它当 Ⓐ 的标题，等于说校正模型写了被校正的那段话。
-assert.match(workspaceUiJs, /state\.response\.raw_answer \? state\.response\.raw_answer\.model/,
+assert.match(workspaceUiJs, /reviewTitleForA\(state\.response && state\.response\.raw_answer\)/,
   "the Ⓐ header must take its model from raw_answer, not from the correcting model");
 // 校正没跑完时没有卡片，不等于「无需校正」。
 assert.match(workspaceUiJs, /reviewCardsUnavailable/,
@@ -1353,8 +1353,12 @@ assert.match(workspaceUiJs, /renderReviewProse\(refs\.reviewTextA, Review\.parse
 assert.doesNotMatch(workspaceUiJs, /\.innerHTML|insertAdjacentHTML/, "no path may hand model text to innerHTML");
 // 模型名要等完整的 raw_answer 才知道，在那之前用不点名模型的标题，而不是拿下拉框
 // 里选的那个去猜（粘贴模式下根本没有模型写 A）。
-assert.match(workspaceUiJs, /function renderReviewPreview\(\)[\s\S]{0,700}t\("reviewTitleAUnknownModel"\)/,
+assert.match(workspaceUiJs, /function renderReviewPreview\(\)[\s\S]{0,700}reviewTitleForA\(state\.rawAnswer\)/,
   "the preview must not name a model it has not been told about");
+assert.match(workspaceUiJs, /function reviewTitleForA\(rawAnswer\) \{[\s\S]{0,500}return t\("reviewTitleAUnknownModel"\);/,
+  "without a raw_answer the A title must not name any model");
+assert.doesNotMatch(workspaceUiJs, /function reviewTitleForA[\s\S]{0,600}modelSelect/,
+  "the A title must not guess the model from the dropdown");
 
 // 占位期间 Ⓑ/Ⓒ 的正式内容全部让位，「修订 ⇄ 净版」也收起来：此刻切过去两边都是空的。
 assert.match(workspaceUiJs, /function setReviewPending\(on\) \{[\s\S]{0,600}refs\.reviewCorr\.hidden = on;/,
@@ -1432,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261010-review-mode/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261011-a-title/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1460,4 +1464,14 @@ console.log("streaming A + pending-columns checks passed");
     assert.ok(main.includes(marker), `${marker} must live inside #anchor-workspace`);
   }
   console.log("review-mode layout checks passed");
+}
+
+// Ⓐ 栏标题：模型用清单里的显示名，粘贴的答案单独一套（2026-10-11）。
+{
+  const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
+  assert.match(uiSrc, /function modelDisplayName\(/, "A title must map model ids to catalog labels");
+  assert.match(uiSrc, /reviewTitleAPasted: "未矫正 · 粘贴的答案"/, "zh pasted title");
+  assert.match(uiSrc, /reviewTitleAPasted: "Uncorrected · pasted answer"/, "en pasted title");
+  assert.ok(!/t\("reviewTitleA", \{ model: baseModel \}\)/.test(uiSrc), "A title must not print the raw model id");
+  console.log("A-column title checks passed");
 }

@@ -344,6 +344,7 @@
       reviewSectionAria: "Anchor review columns",
       reviewTitleA: "Uncorrected · {model}",
       reviewTitleAUnknownModel: "Uncorrected",
+      reviewTitleAPasted: "Uncorrected · pasted answer",
       reviewNoteA: "LLM verbatim. Yellow highlight = claims Anchor flagged after verification (see Ⓒ).",
       reviewTitleB: "Anchor-corrected · KB-grounded",
       reviewTitleC: "Diff audit · correction axes",
@@ -665,6 +666,7 @@
       reviewSectionAria: "Anchor 校正三栏",
       reviewTitleA: "未矫正 · {model} 原话",
       reviewTitleAUnknownModel: "未矫正 · 原话",
+      reviewTitleAPasted: "未矫正 · 粘贴的答案",
       reviewNoteA: "LLM 逐字原文。黄色高亮 = Anchor 在 Ⓒ 栏核验后标出的可疑主张。",
       reviewTitleB: "Anchor 校正版 · KB 锚定",
       reviewTitleC: "对比审计 · 矫正轴",
@@ -2323,14 +2325,34 @@
       });
     }
 
+    // Ⓐ 栏标题照复现版「未矫正 · {模型} 原话」，但模型用清单里的显示名（Claude Sonnet 5.5、
+    // GPT-5.2…），不是内部 id；粘贴的答案单独一套标题（2026-10-11：现在可选多个原始回答模型）。
+    function modelDisplayName(modelId) {
+      const id = String(modelId || "");
+      if (!id) return "";
+      const entry = modelCatalog && Array.isArray(modelCatalog.models)
+        ? modelCatalog.models.find((model) => model.id === id)
+        : null;
+      return entry && entry.label ? entry.label : id;
+    }
+
+    // 完整的 raw_answer 到之前不点名模型（流里的 delta 只有文字，拿下拉框去猜在粘贴模式下
+    // 就是错的），所以流式期间是「未矫正 · 原话」，A 一写完就换成具体的模型名。
+    function reviewTitleForA(rawAnswer) {
+      if (rawAnswer && (rawAnswer.model === "pasted" || rawAnswer.provider === "pasted")) {
+        return t("reviewTitleAPasted");
+      }
+      if (rawAnswer && rawAnswer.model) {
+        return t("reviewTitleA", { model: modelDisplayName(rawAnswer.model) });
+      }
+      return t("reviewTitleAUnknownModel");
+    }
+
     function renderReviewPreview() {
       setReviewPending(true);
       // 模型名要等完整的 raw_answer 才知道（流里的 delta 只有文字），在那之前用
       // 不点名模型的那套标题，而不是拿下拉框里选的那个去猜。
-      const model = state.rawAnswer && state.rawAnswer.model ? state.rawAnswer.model : "";
-      refs.reviewTitleA.textContent = model
-        ? t("reviewTitleA", { model: model })
-        : t("reviewTitleAUnknownModel");
+      refs.reviewTitleA.textContent = reviewTitleForA(state.rawAnswer);
       // 和 final 之后同一条路径：解析成段落结构 → createElement/textContent。
       // 第二个参数是空的 a_marks —— 高亮哪一句要等 Ⓒ 栏的核验结果。
       renderReviewProse(refs.reviewTextA, Review.parseAnswer(State.liveAnswerText(state), []), "awv7-ref-live");
@@ -2361,10 +2383,7 @@
       // Ⓐ 栏点名的是**写出这段原话的**模型，也就是 raw_answer 里的那个。
       // anchor_review.model 是 Anchor 的校正模型（合约里的 LLM_REVIEW_MODEL），
       // 拿它当 Ⓐ 的标题，就等于说校正模型写了被校正的那段话。
-      const baseModel = state.response && state.response.raw_answer ? state.response.raw_answer.model : "";
-      refs.reviewTitleA.textContent = baseModel
-        ? t("reviewTitleA", { model: baseModel })
-        : t("reviewTitleAUnknownModel");
+      refs.reviewTitleA.textContent = reviewTitleForA(state.response && state.response.raw_answer);
       renderReviewProse(refs.reviewTextA, Review.parseAnswer(review.aText, review.aMarks), idPrefix);
 
       // 校正未完成时 b_track/b_clean 就是 A 原文（照约定），所以两个视图照常渲染，
