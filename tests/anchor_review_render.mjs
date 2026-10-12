@@ -579,3 +579,95 @@ console.log("streaming raw-answer parse checks passed");
   assert.ok(odd.includes("*"), "the unmatched asterisk must stay literal, not be swallowed");
   console.log("highlight-inside-emphasis checks passed");
 }
+
+// ───────────────────────────────────────────── C 栏的英文界面（线上 2026-10-12）
+//
+// 界面切到 EN 时，C 栏里这三处后端文字要跟着变：校正卡标签、引用核验判定、
+// Ⓑ 栏「校正未完成」后面那条原因。中文界面一个字不变。
+{
+  const payload = {
+    a_text: "A.",
+    b_track: "B.",
+    b_clean: "B.",
+    completed: false,
+    fallback_reason: "最小改动自证不通过：把 〚NEW〛 去掉之后，得到的文本不等于 A 原文",
+    fallback_reason_en: "Minimal-diff self-check failed: the restored text does not equal the original",
+    validation: {
+      issues: ["PMID 白名单不通过：B 引入了 49999999"],
+      issues_en: ["PMID whitelist failed: the correction introduced 49999999"],
+    },
+    cards: [
+      { tag: "张冠李戴 · WRONG-PAPER", tag_en: "WRONG PAPER", severity: "substantive", said: "s", verified: "v", why: "w" },
+      { tag: "引用正确 · CONFIRMED", severity: "confirmed", said: "s", verified: "v", why: "w" },
+      { tag: "单 RCT 评 GRADE", severity: "moderate", said: "s", verified: "v", why: "w" },
+    ],
+    citation_checks: [
+      { cit: "[1]", pmid: "21864166", claimed: "c", verdict: "honest_omission",
+        verdict_text: "诚实省略 · Anchor 补齐 21864166",
+        verdict_text_en: "Honest omission · Anchor added PMID 21864166" },
+      { cit: "[2]", pmid: null, claimed: "c", verdict: "no_pmid",
+        verdict_text: "未给 PMID/DOI，按题名未能定位",
+        verdict_text_en: "No PMID/DOI · not found by title" },
+      // 老响应：后端没给英文那一份，退回中文而不是显示空白。
+      { cit: "[3]", pmid: "26886654", claimed: "c", verdict: "wrong_paper",
+        verdict_text: "✗ 张冠李戴（题名、作者不符）" },
+    ],
+  };
+  const normalized = Review.normalizeReview(payload);
+  assert.ok(normalized, "the sample must normalize");
+
+  // 1 · EN 界面：能给英文的地方都不出现汉字。
+  const englishSurface = [
+    Review.incompleteReason(normalized, "en"),
+    ...normalized.cards.slice(0, 2).map((card) => Review.cardTag(card, "en")),
+    ...normalized.citationChecks.slice(0, 2).map((row) => Review.verdictText(row, "en")),
+  ];
+  englishSurface.forEach((value) => {
+    assert.ok(value, "every English surface must have text");
+    assert.ok(!Review.hasChinese(value), `EN surface must not contain Chinese: ${value}`);
+  });
+  assert.equal(Review.cardTag(normalized.cards[0], "en"), "WRONG PAPER", "tag_en wins");
+  assert.equal(Review.cardTag(normalized.cards[1], "en"), "CONFIRMED", "falls back to the half after ·");
+  // 只有中文的标签没有英文可退，照原样显示——比一张没有标签的卡好。
+  assert.equal(Review.cardTag(normalized.cards[2], "en"), "单 RCT 评 GRADE");
+  assert.equal(
+    Review.verdictText(normalized.citationChecks[0], "en"),
+    "Honest omission · Anchor added PMID 21864166",
+  );
+  // 后端没给英文的那一行退回中文，不是空白。
+  assert.equal(Review.verdictText(normalized.citationChecks[2], "en"), "✗ 张冠李戴（题名、作者不符）");
+  assert.equal(
+    Review.incompleteReason(normalized, "en"),
+    "Minimal-diff self-check failed: the restored text does not equal the original",
+  );
+  // fallback_reason_en 缺了就用 validation.issues_en，两个都没有才退回中文。
+  const noReasonEn = Review.normalizeReview({ ...payload, fallback_reason_en: "" });
+  assert.equal(
+    Review.incompleteReason(noReasonEn, "en"),
+    "PMID whitelist failed: the correction introduced 49999999",
+  );
+  const chineseOnly = Review.normalizeReview({
+    ...payload, fallback_reason_en: "", validation: { issues: ["程序校验不通过"], issues_en: [] },
+  });
+  assert.equal(Review.incompleteReason(chineseOnly, "en"), payload.fallback_reason);
+
+  // 2 · 中文界面：和改动之前逐字相同。
+  assert.equal(Review.cardTag(normalized.cards[0], "zh"), "张冠李戴 · WRONG-PAPER");
+  assert.equal(Review.cardTag(normalized.cards[1], "zh"), "引用正确 · CONFIRMED");
+  assert.equal(Review.verdictText(normalized.citationChecks[0], "zh"), "诚实省略 · Anchor 补齐 21864166");
+  assert.equal(Review.incompleteReason(normalized, "zh"), payload.fallback_reason);
+  // 不传语言 = 老调用方，行为不变。
+  assert.equal(Review.incompleteReason(normalized), payload.fallback_reason);
+
+  // 3 · 后端完全没给这三个新字段时（旧响应）两种语言都退回中文，不报错、不空白。
+  const legacy = Review.normalizeReview({
+    a_text: "A.", b_track: "B.", b_clean: "B.", completed: true,
+    cards: [{ tag: "时效 · STALE", severity: "moderate", said: "s", verified: "v", why: "" }],
+    citation_checks: [{ cit: "[1]", pmid: "1", claimed: "c", verdict: "verified", verdict_text: "✓ 核验正确" }],
+  });
+  assert.equal(legacy.cards[0].tagEn, "");
+  assert.equal(Review.cardTag(legacy.cards[0], "en"), "STALE");
+  assert.equal(Review.verdictText(legacy.citationChecks[0], "en"), "✓ 核验正确");
+
+  console.log("C column i18n parse checks passed");
+}

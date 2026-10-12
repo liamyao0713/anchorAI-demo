@@ -1436,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261011-no-jump/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261012-i18n/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1577,4 +1577,63 @@ console.log("streaming A + pending-columns checks passed");
   assert.match(uiSrc, /function setReviewActive\(on\) \{[\s\S]{0,900}window\.scrollBy\(0, shift\)/, "the question card must be pinned across the layout switch");
   assert.match(uiSrc, /reviewWaitingA: "等待模型开始输出…"/, "zh waiting text");
   console.log("no-jump checks passed");
+}
+
+// C 栏的英文界面（线上 2026-10-12：界面切到 EN，C 栏里仍然是中文）。三处后端文字
+// 各自要有一条按界面语言挑的路，而且挑的是后端新给的那一份，不是在前端翻译。
+{
+  const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
+  const reviewJs = readFileSync(new URL("../anchor-review.js", import.meta.url), "utf8");
+  const review = require("../anchor-review.js");
+
+  // 归一化把三个英文字段带出来。
+  assert.match(reviewJs, /tagEn: text\(card\.tag_en\)/, "cards must carry tag_en");
+  assert.match(reviewJs, /verdictTextEn: text\(row\.verdict_text_en\)/, "checks must carry verdict_text_en");
+  assert.match(reviewJs, /fallbackReasonEn: text\(payload\.fallback_reason_en\)/, "the review must carry fallback_reason_en");
+  assert.match(reviewJs, /validationIssuesEn: stringList\(validation\.issues_en\)/, "validation must carry issues_en");
+
+  // 渲染按界面语言选，而不是无条件读中文那一份。
+  assert.match(uiSrc, /Review\.cardTag\(card, currentUiLanguage\)/, "the card tag must follow the UI language");
+  assert.match(uiSrc, /Review\.verdictText\(row, currentUiLanguage\)/, "the verdict pill must follow the UI language");
+  assert.match(uiSrc, /Review\.incompleteReason\(review, currentUiLanguage\)/, "the Ⓑ incomplete reason must follow the UI language");
+  // 占位的进度行在占位撤掉时要清空，否则下一次占位先闪一下上一次那个语言的文字。
+  assert.match(uiSrc, /if \(!on\) \{[\s\S]{0,400}step\.textContent = "";/, "the pending step must be cleared when the placeholder goes away");
+
+  // 退路：模型只给了历史的「中文 · ENGLISH」双语 tag 时取英文那一半；整条只有中文
+  // 时原样显示——显示一个读不懂的标签，好过显示一张没有标签的卡。
+  assert.equal(review.cardTag({ tag: "引用张冠李戴 · WRONG PAPER" }, "en"), "WRONG PAPER");
+  assert.equal(review.cardTag({ tag: "时效 · STALE", tagEn: "STALE" }, "en"), "STALE");
+  assert.equal(review.cardTag({ tag: "单 RCT 评 GRADE" }, "en"), "单 RCT 评 GRADE");
+  // 中文界面一个字不变。
+  assert.equal(review.cardTag({ tag: "时效 · STALE", tagEn: "STALE" }, "zh"), "时效 · STALE");
+  assert.equal(
+    review.verdictText({ verdictText: "✓ 核验正确", verdictTextEn: "✓ Verified" }, "zh"),
+    "✓ 核验正确",
+  );
+  assert.equal(
+    review.verdictText({ verdictText: "✓ 核验正确", verdictTextEn: "✓ Verified" }, "en"),
+    "✓ Verified",
+  );
+  // 后端没给英文（老响应）时退回中文，而不是显示空白。
+  assert.equal(review.verdictText({ verdictText: "✓ 核验正确", verdictTextEn: "" }, "en"), "✓ 核验正确");
+
+  // 切语言要重画三栏，而不只是刷 data-i18n 的那些静态文字：C 栏的卡片标签、引用
+  // 核验、Ⓑ 栏的未完成说明、占位里的进度行全都在 renderAnchorReview 里。
+  assert.match(
+    uiSrc,
+    /function setUiLanguage\(language, options\) \{[\s\S]{0,1200}applyStaticTranslations\(\);[\s\S]{0,400}renderAll\(\);/,
+    "switching the UI language must re-render, not just swap the static strings",
+  );
+  assert.match(
+    uiSrc,
+    /function renderAll\(\) \{[\s\S]{0,900}renderAnchorReview\(\);/,
+    "renderAll must redraw the three columns",
+  );
+  assert.match(
+    uiSrc,
+    /function renderReviewPreview\(\) \{[\s\S]{0,1400}renderReviewProgress\(\);/,
+    "the placeholder's progress line must be redrawn with the preview",
+  );
+
+  console.log("C column i18n checks passed");
 }

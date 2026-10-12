@@ -2233,7 +2233,8 @@
         // severity 的三色是历史的语义编码（实质错误红 / 中度琥珀 / 确认灰），而且它是
         // 数据，不是样式表里的固定搭配，所以照历史写成 inline。
         element.style.borderLeftColor = color;
-        const tag = create("div", { className: "c-tag", text: card.tag });
+        // 标签是矫正模型写的，不走 data-i18n：EN 界面取 tag_en（见 Review.cardTag）。
+        const tag = create("div", { className: "c-tag", text: Review.cardTag(card, currentUiLanguage) });
         tag.style.background = color;
         element.appendChild(tag);
         [["🔴", t("reviewCardSaid"), card.said],
@@ -2275,7 +2276,9 @@
         tr.appendChild(cit);
         tr.appendChild(create("td", { text: row.claimed }));
         const verdict = create("td");
-        const pill = create("span", { className: "vpill", text: row.verdictText || row.verdict || "-" });
+        // 判定文字由后端程序写死（中英两份）。EN 界面取 verdict_text_en。
+        const verdictLabel = Review.verdictText(row, currentUiLanguage);
+        const pill = create("span", { className: "vpill", text: verdictLabel || row.verdict || "-" });
         pill.style.background = Review.verdictColor(row.verdict);
         verdict.appendChild(pill);
         if (row.actual) appendText(verdict, ` ${row.actual}`);
@@ -2337,7 +2340,15 @@
       refs.reviewAuditContent.hidden = on;
       // 还没有校正稿，「修订 ⇄ 净版」切过去两边都是空的。
       refs.reviewSlide.hidden = on;
-      if (!on) return;
+      if (!on) {
+        // 文字留着的话，切界面语言后它既不会重画、也没人会去画它：下一次占位一亮，
+        // 屏幕上先闪一下上一次那句（而且是上一次那个语言的）「正在矫正」。
+        [refs.reviewPendingB, refs.reviewPendingC].forEach((host) => {
+          const step = host.querySelector(".v7-pending-step");
+          if (step) step.textContent = "";
+        });
+        return;
+      }
       refs.reviewIncomplete.hidden = true;
       refs.reviewReferences.hidden = true;
     }
@@ -2429,7 +2440,8 @@
       replaceChildren(refs.reviewIncomplete);
       if (!review.completed) {
         refs.reviewIncomplete.appendChild(create("b", { text: t("reviewIncomplete") }));
-        appendText(refs.reviewIncomplete, ` · ${Review.incompleteReason(review) || t("reviewIncompleteNoReason")}`);
+        const reason = Review.incompleteReason(review, currentUiLanguage) || t("reviewIncompleteNoReason");
+        appendText(refs.reviewIncomplete, ` · ${reason}`);
       }
 
       renderReviewProse(refs.reviewTrackView, Review.parseTrack(review.bTrack, review.references), idPrefix);

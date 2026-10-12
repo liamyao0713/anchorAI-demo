@@ -384,6 +384,8 @@
         if (!card || typeof card !== "object") return null;
         return {
           tag: text(card.tag),
+          // 纯英文短标签。后端 2026-10-12 起多给一个，老响应里没有 → 空串。
+          tagEn: text(card.tag_en),
           severity: text(card.severity).toLowerCase(),
           said: text(card.said),
           verified: text(card.verified),
@@ -404,6 +406,7 @@
           claimed: text(row.claimed),
           verdict: text(row.verdict).toLowerCase(),
           verdictText: text(row.verdict_text),
+          verdictTextEn: text(row.verdict_text_en),
           actual: text(row.actual),
         };
       })
@@ -425,7 +428,9 @@
       language: payload.language === "zh" ? "zh" : payload.language === "en" ? "en" : "",
       completed: payload.completed !== false,
       fallbackReason: text(payload.fallback_reason),
+      fallbackReasonEn: text(payload.fallback_reason_en),
       validationIssues: stringList(validation.issues),
+      validationIssuesEn: stringList(validation.issues_en),
       aText,
       aMarks: stringList(payload.a_marks),
       bTrack: bTrack || aText,
@@ -436,10 +441,50 @@
     };
   }
 
+  // ───────────────────────────────────────────────── 界面语言：C 栏那几处后端文字
+  //
+  // C 栏里有三类文字是**后端写的**，不走 data-i18n：校正卡的标签（矫正模型写的）、
+  // 引用核验的判定（程序写死的）、Ⓑ 栏「校正未完成」后面那条原因（程序写死的）。
+  // 2026-10-12 线上实测：界面切到 EN 之后这三处仍然是中文。
+  //
+  // 后端现在每一处都多给一份英文（verdict_text_en / tag_en / fallback_reason_en），
+  // 这三个函数只做一件事：按当前界面语言挑一份，挑不到就退回原来那份——少一处翻译
+  // 远好过一栏空白。
+
+  const CJK_RE = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+
+  function hasChinese(value) {
+    return CJK_RE.test(String(value || ""));
+  }
+
+  // 历史 CARDS 的 tag 是「中文 · ENGLISH」双语写法。模型没给 tag_en 时就从那里取
+  // 「·」之后不含汉字的那一半——取不出来（整条只有中文）才原样显示 tag：显示一个
+  // 读不懂的标签，也好过显示一张没有标签的卡。
+  function cardTag(card, language) {
+    if (!card) return "";
+    if (language !== "en") return card.tag;
+    if (card.tagEn) return card.tagEn;
+    const parts = String(card.tag || "").split(/\s*·\s*/);
+    const english = parts.slice(1).find((part) => part && !hasChinese(part));
+    return english || card.tag;
+  }
+
+  function verdictText(row, language) {
+    if (!row) return "";
+    if (language === "en" && row.verdictTextEn) return row.verdictTextEn;
+    return row.verdictText;
+  }
+
   // 校正未完成时 Ⓑ 栏顶部要说明原因：后端的 fallback_reason 优先，没有就用程序校验留下的
   // validation.issues。两个都空时只说「未完成」，不替后端编一个理由。
-  function incompleteReason(review) {
+  function incompleteReason(review, language) {
     if (!review) return "";
+    if (language === "en") {
+      if (review.fallbackReasonEn) return review.fallbackReasonEn;
+      if (review.validationIssuesEn && review.validationIssuesEn.length) {
+        return review.validationIssuesEn.join("; ");
+      }
+    }
     if (review.fallbackReason) return review.fallbackReason;
     return review.validationIssues.join("; ");
   }
@@ -462,6 +507,9 @@
     normalizeCards,
     normalizeCitationChecks,
     incompleteReason,
+    hasChinese,
+    cardTag,
+    verdictText,
   };
 
   if (typeof module !== "undefined" && module.exports) {

@@ -88,6 +88,7 @@
     "cards": [
       {
         "tag": "时效 · STALE",
+        "tag_en": "STALE",
         "severity": "moderate",
         "said": "Says 'phase 3 FIBRONEER-IPF is ongoing / lacks phase-3 data', self-rated overall confidence low.",
         "verified": "FIBRONEER-IPF (phase 3, N=1177) read out positive in 2025: 18 mg improved 52-week FVC by 68.8 mL (95% CI 30.3-107.4); a network meta-analysis (n=16,525) ranks it joint-best for FVC.",
@@ -95,6 +96,7 @@
       },
       {
         "tag": "引用张冠李戴 · WRONG PAPER",
+        "tag_en": "WRONG PAPER",
         "severity": "substantive",
         "said": "Cites 'Noble PW et al., Eur Respir J 2016; PMID 26886654' for pooled pirfenidone mortality and 'Rochwerg B et al., Ann Intern Med 2017; PMID 28456699' for a nintedanib mortality meta-analysis.",
         "verified": "PMID 26886654 is a hypoxia-marker prognostic paper (Zheng, Medicine 2016). PMID 28456699 is an FFR cardiovascular-events paper (Li, JACC Cardiovasc Interv 2017). Anchor substitutes the Petnak 2021 antifibrotic mortality meta-analysis (PMID 34090872).",
@@ -102,6 +104,7 @@
       },
       {
         "tag": "引用正确 · CONFIRMED 3/5",
+        "tag_en": "CONFIRMED 3/5",
         "severity": "confirmed",
         "said": "Cites PMID 35569036 (nerandomilast phase 2), PMID 24836312 (ASCEND) and PMID 24836310 (INPULSIS).",
         "verified": "All three check out on NCBI esummary: right paper, right year, on topic. Anchor keeps them unchanged.",
@@ -114,7 +117,8 @@
         "pmid": "35569036",
         "claimed": "nerandomilast phase-2 pivotal trial (Richeldi, NEJM 2022)",
         "verdict": "verified",
-        "verdict_text": "✓ 核验正确 / verified",
+        "verdict_text": "✓ 核验正确",
+        "verdict_text_en": "✓ Verified",
         "actual": null
       },
       {
@@ -122,7 +126,8 @@
         "pmid": "24836312",
         "claimed": "ASCEND pirfenidone phase 3 (King, NEJM 2014)",
         "verdict": "verified",
-        "verdict_text": "✓ 核验正确 / verified",
+        "verdict_text": "✓ 核验正确",
+        "verdict_text_en": "✓ Verified",
         "actual": null
       },
       {
@@ -130,7 +135,8 @@
         "pmid": "24836310",
         "claimed": "INPULSIS nintedanib trials (Richeldi, NEJM 2014)",
         "verdict": "verified",
-        "verdict_text": "✓ 核验正确 / verified",
+        "verdict_text": "✓ 核验正确",
+        "verdict_text_en": "✓ Verified",
         "actual": null
       },
       {
@@ -138,7 +144,8 @@
         "pmid": "26886654",
         "claimed": "Noble 2016 pooled pirfenidone mortality (Eur Respir J)",
         "verdict": "wrong_paper",
-        "verdict_text": "✗ 张冠李戴 / wrong paper",
+        "verdict_text": "✗ 张冠李戴",
+        "verdict_text_en": "✗ Wrong paper",
         "actual": "Zheng et al. A hypoxia-marker prognostic study. Medicine (Baltimore). 2016 — unrelated to IPF."
       },
       {
@@ -146,15 +153,17 @@
         "pmid": "28456699",
         "claimed": "Rochwerg 2017 nintedanib mortality meta-analysis (Ann Intern Med)",
         "verdict": "wrong_paper",
-        "verdict_text": "✗ 张冠李戴 / wrong paper",
+        "verdict_text": "✗ 张冠李戴",
+        "verdict_text_en": "✗ Wrong paper",
         "actual": "Li et al. Fractional flow reserve and cardiovascular events. JACC Cardiovasc Interv. 2017 — unrelated to IPF."
       },
       {
         "cit": "Maher 2024 MID threshold",
-        "pmid": null,
+        "pmid": "21864166",
         "claimed": "not cited by the model; Anchor added the MID source",
         "verdict": "honest_omission",
-        "verdict_text": "理论阈值由 Anchor 补齐 / filled by Anchor",
+        "verdict_text": "诚实省略 · Anchor 补齐 21864166",
+        "verdict_text_en": "Honest omission · Anchor added PMID 21864166",
         "actual": "Maher TM, et al. Eur Respir J. 2024;63(4):2301121 — no PMID in the KB row."
       }
     ],
@@ -190,13 +199,15 @@
     "validation": {
       "minimal_diff_ok": true,
       "pmid_whitelist_ok": true,
-      "issues": []
+      "issues": [],
+      "issues_en": []
     },
     "latency_ms": {
       "retrieval": 1870,
       "ncbi": 2240,
       "llm": 36510,
       "total": 41820
-    }
+    },
+    "fallback_reason_en": null
   }
 }

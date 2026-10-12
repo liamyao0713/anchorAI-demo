@@ -284,6 +284,111 @@ function mockChatResponse(requestBody) {
       },
     });
   }
+  if (/anchor i18n/i.test(question)) {
+    // C 栏英文界面用的情形（线上 2026-10-12）：卡片标签是矫正模型写的中文、
+    // 引用核验的判定是后端程序写死的中文。界面切到 EN 时这两处都该换成英文。
+    // 第三张卡刻意**不给** tag_en 且整条只有中文 —— 那是退路要兜住的那一种。
+    const review = anchorReviewFixture.anchor_review;
+    return okResponse({
+      ...anchorReviewFixture,
+      question,
+      anchor_review: {
+        ...review,
+        cards: [
+          {
+            tag: "张冠李戴 · WRONG-PAPER",
+            tag_en: "WRONG PAPER",
+            severity: "substantive",
+            said: "Cites 'Noble PW et al., Eur Respir J 2016; PMID 26886654' for pooled pirfenidone mortality.",
+            verified: "PMID 26886654 is a hypoxia-marker prognostic paper (Zheng, Medicine 2016).",
+            why: "The identifier was recalled rather than looked up, so a real trial name carries an unrelated id.",
+          },
+          {
+            tag: "引用正确 · CONFIRMED",
+            tag_en: "CONFIRMED",
+            severity: "confirmed",
+            said: "Cites PMID 24836312 for the ASCEND pirfenidone phase 3 result.",
+            verified: "PMID 24836312 is ASCEND (King, NEJM 2014). The effect size quoted matches the paper.",
+            why: "Both the identifier and the numbers check out against PubMed.",
+          },
+          {
+            tag: "单 RCT 评 GRADE",
+            severity: "moderate",
+            said: "Attaches GRADE 'moderate certainty' to a single phase-2 RCT.",
+            verified: "GRADE applies to a body of evidence; a single RCT is appraised with RoB-2.",
+            why: "No tag_en on this card on purpose: the fallback has to read the half after ' · ', and here there is none.",
+          },
+        ],
+        citation_checks: [
+          {
+            cit: "PMID 24836312", pmid: "24836312",
+            claimed: "ASCEND pirfenidone phase 3 (King, NEJM 2014)",
+            verdict: "verified",
+            verdict_text: "✓ 核验正确", verdict_text_en: "✓ Verified",
+            actual: null,
+          },
+          {
+            cit: "PMID 26886654", pmid: "26886654",
+            claimed: "Noble 2016 pooled pirfenidone mortality (Eur Respir J)",
+            verdict: "wrong_paper",
+            verdict_text: "✗ 张冠李戴（题名、作者、期刊不符）",
+            verdict_text_en: "✗ Wrong paper (title, author, journal mismatch)",
+            actual: "Zheng X, et al. Prognostic value of hypoxia markers. Medicine (Baltimore). 2016.",
+          },
+          {
+            cit: "Maher 2024 MID threshold", pmid: "21864166",
+            claimed: "not cited by the model; Anchor added the MID source",
+            verdict: "honest_omission",
+            verdict_text: "诚实省略 · Anchor 补齐 21864166",
+            verdict_text_en: "Honest omission · Anchor added PMID 21864166",
+            actual: "Maher TM, et al. Eur Respir J. 2024.",
+          },
+          {
+            cit: "[4]", pmid: null,
+            claimed: "an unnamed registry analysis of antifibrotic adherence",
+            verdict: "no_pmid",
+            verdict_text: "未给 PMID/DOI，按题名未能定位",
+            verdict_text_en: "No PMID/DOI · not found by title",
+            actual: null,
+          },
+          {
+            cit: "PMID 49999999", pmid: "49999999",
+            claimed: "a fabricated nintedanib mortality meta-analysis",
+            verdict: "not_found",
+            verdict_text: "无效 PMID（NCBI 无记录）",
+            verdict_text_en: "Invalid PMID (no NCBI record)",
+            actual: null,
+          },
+        ],
+      },
+    });
+  }
+  if (/anchor incomplete-i18n/i.test(question)) {
+    // Ⓑ 栏「校正未完成」那条说明的原因也是后端写的中文。
+    const review = anchorReviewFixture.anchor_review;
+    return okResponse({
+      ...anchorReviewFixture,
+      question,
+      anchor_review: {
+        ...review,
+        completed: false,
+        fallback_reason:
+          "最小改动自证不通过：把 〚NEW〛 去掉、〚DEL〛 还原之后，得到的文本不等于 A 原文（还原后 1489 字符，A 正文 1502 字符）",
+        fallback_reason_en:
+          "Minimal-diff self-check failed: with 〚NEW〛 removed and 〚DEL〛 restored, the text does not equal the original answer (1489 characters restored, 1502 in the original body)",
+        b_track: review.a_text,
+        b_clean: review.a_text,
+        cards: [],
+        references: [],
+        validation: {
+          minimal_diff_ok: false,
+          pmid_whitelist_ok: true,
+          issues: ["最小改动自证不通过"],
+          issues_en: ["Minimal-diff self-check failed"],
+        },
+      },
+    });
+  }
   if (/anchor fallback/i.test(question)) {
     // 校正未完成：照合约 b_track = b_clean = A 原文，cards 可空，引用核验表仍然给出。
     const review = anchorReviewFixture.anchor_review;
