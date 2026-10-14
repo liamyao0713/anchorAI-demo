@@ -1,0 +1,2 @@
+a7c04395861267e971fbda969c17965960f7e03b  修改前 HEAD（本次基线）
+改动前文件：index.html、curation/assets/entry.css

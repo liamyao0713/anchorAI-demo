@@ -565,10 +565,46 @@ Do not consult any external knowledge base — answer from your parametric knowl
 </footer>
 
 <!-- AnchorKB 数据库工作台入口（构建时注入，原仓库文件未改动） -->
+<style>
+  /* 入口药丸的中英文案。跟页脚同一套机制：setUiLanguage() 会把 <html lang> 设成
+     zh-CN / en，而 .zh-only 只在 #anchor-cases 内生效、data-lang-block 只在 .aw-shell
+     内生效，这颗药丸两个容器都不在，所以按 <html lang> 判。默认 EN，与初始 lang="en"
+     及页面其余静态文案一致。
+     只切文字，不碰 #curation-entry 自身任何外观属性——定位、配色、圆角、阴影、字号
+     仍全部来自 curation/assets/entry.css，这里一条都没覆盖。
+     药丸是 inline-flex + gap:6px；裸文本换成两个 span 后，有一个始终 display:none，
+     可见的仍是「图标 + 一段文字」两项，间距与原来相同。 */
+  #curation-entry [data-ce-lang="zh"] { display: none; }
+  html[lang^="zh"] #curation-entry [data-ce-lang="zh"] { display: inline; }
+  html[lang^="zh"] #curation-entry [data-ce-lang="en"] { display: none; }
+</style>
 <a id="curation-entry" href="curation/"
-   title="AnchorKB 数据库工作台（需登录，数据来自受鉴权的管理后端）">
-  <span aria-hidden="true">&#x1F5C3;</span> 数据库工作台
-</a>
+   title="AnchorKB database workspace (sign-in required; data comes from an authenticated admin backend)"><span aria-hidden="true">&#x1F5C3;</span><span data-ce-lang="en">Database workspace</span><span data-ce-lang="zh">数据库工作台</span></a>
 <link rel="stylesheet" href="curation/assets/entry.css">
+<script>
+  /* title 是属性，CSS 改不了，所以这一小段只管它。
+     不去调 workspace-ui.js 的内部接口，只观察它已经写出来的那个信号——<html lang>。
+     这样无论语言是由初始化、按钮点击还是 localStorage 恢复而变，都会被接住。
+     可访问名不设 aria-label：display:none 的那一份不进可访问性树，可见 span 的文字
+     本身就是可访问名，天然跟着语言走，少一处需要同步的东西。
+     JS 失效时降级是一致的：CSS 仍按 <html lang> 切文字，而初始 lang="en"，
+     于是文案与 title 都停在英文，不会出现一半中文一半英文。 */
+  (function () {
+    var el = document.getElementById("curation-entry");
+    if (!el) return;
+    var TITLES = {
+      zh: "AnchorKB 数据库工作台（需登录，数据来自受鉴权的管理后端）",
+      en: "AnchorKB database workspace (sign-in required; data comes from an authenticated admin backend)"
+    };
+    function sync() {
+      var zh = String(document.documentElement.lang || "").toLowerCase().indexOf("zh") === 0;
+      el.setAttribute("title", zh ? TITLES.zh : TITLES.en);
+    }
+    sync();
+    new MutationObserver(sync).observe(document.documentElement, {
+      attributes: true, attributeFilter: ["lang"]
+    });
+  })();
+</script>
 </body>
 </html>
