@@ -491,6 +491,74 @@ Do not consult any external knowledge base — answer from your parametric knowl
 </section>
 <script src="cases.js?v=20261012-i18n" defer></script>
 
+<!-- Android 安装包下载。样式内联、不改任何 .css/.js，所以 ?v= 缓存戳不用动
+     （tests/frontend_static_checks.mjs 既要求全部资源共用一个戳，又钉死了本轮的
+     20261012-i18n，动戳会同时破两条断言）。
+     语言：setUiLanguage() 把 <html lang> 设为 zh-CN / en。页面另两套机制在这里都不管用
+     —— .zh-only 只在 #anchor-cases 内生效，data-lang-block 只在 .aw-shell 内生效，
+     而本页脚在两者之外，所以按 <html lang> 判，默认 EN（初始 lang="en"）。 -->
+<style>
+  .anchor-apk-footer {
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 22px 20px 26px;
+    border-top: 1px solid var(--aw-border, #dce3ed);
+    background: var(--aw-bg, #f4f7fb);
+    color: var(--aw-text, #172033);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow-wrap: anywhere;
+  }
+  .anchor-apk-footer__inner {
+    box-sizing: border-box;
+    max-width: 1180px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 18px;
+  }
+  .anchor-apk-footer__text { min-width: 0; }
+  .anchor-apk-footer__title { margin: 0; font-size: 15px; font-weight: 650; }
+  .anchor-apk-footer__meta { margin: 3px 0 0; font-size: 13px; color: var(--aw-muted, #667085); }
+  .anchor-apk-footer__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border: 1px solid var(--aw-blue, #315be8);
+    border-radius: 9px;
+    background: var(--aw-blue, #315be8);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .anchor-apk-footer__link:hover { filter: brightness(1.07); }
+  .anchor-apk-footer__link:focus-visible { outline: 3px solid #0b3bbf; outline-offset: 2px; }
+  .anchor-apk-footer [data-apk-lang="zh"] { display: none; }
+  html[lang^="zh"] .anchor-apk-footer [data-apk-lang="zh"] { display: inline; }
+  html[lang^="zh"] .anchor-apk-footer [data-apk-lang="en"] { display: none; }
+  @media (max-width: 640px) {
+    /* 入口药丸是 fixed 的（curation/assets/entry.css: right/bottom 10px），
+       按钮占满一行时右侧留出它的宽度，免得指头点下去碰到药丸。 */
+    .anchor-apk-footer { padding: 18px 14px 22px; }
+    .anchor-apk-footer__inner { gap: 12px; }
+    .anchor-apk-footer__link { width: 100%; justify-content: center; }
+  }
+</style>
+<footer class="anchor-apk-footer" aria-label="AnchorAI Android app download">
+  <div class="anchor-apk-footer__inner">
+    <div class="anchor-apk-footer__text">
+      <p class="anchor-apk-footer__title"><span data-apk-lang="zh">AnchorAI 安卓应用</span><span data-apk-lang="en">AnchorAI Android app</span></p>
+      <p class="anchor-apk-footer__meta"><span data-apk-lang="zh">v1.0.0 · 约 1.9 MB · Android 安装包（APK）</span><span data-apk-lang="en">v1.0.0 · ~1.9 MB · Android package (APK)</span></p>
+    </div>
+    <a class="anchor-apk-footer__link" href="downloads/AnchorAI-1.0.0.apk" download="AnchorAI-1.0.0.apk">
+      <span aria-hidden="true">&#x2B07;&#xFE0E;</span><span data-apk-lang="zh">下载 Android 应用</span><span data-apk-lang="en">Download Android app</span>
+    </a>
+  </div>
+</footer>
+
 <!-- AnchorKB 数据库工作台入口（构建时注入，原仓库文件未改动） -->
 <a id="curation-entry" href="curation/"
    title="AnchorKB 数据库工作台（需登录，数据来自受鉴权的管理后端）">
