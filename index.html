@@ -498,8 +498,14 @@ Do not consult any external knowledge base — answer from your parametric knowl
      —— .zh-only 只在 #anchor-cases 内生效，data-lang-block 只在 .aw-shell 内生效，
      而本页脚在两者之外，所以按 <html lang> 判，默认 EN（初始 lang="en"）。 -->
 <style>
+  /* 子树重置，照页面既有约定来（cases.css 对 #anchor-cases * 就是这么写的）。
+     那两条子树规则都够不到这里——页脚按要求放在正常文档流、在 .aw-shell 和
+     #anchor-cases 之外——所以必须自己声明一遍。
+     漏了它，窄屏下 .anchor-apk-footer__link 的 width:100% 会按 content-box 解析，
+     再加两侧 16px padding 和 1px 边框，实际盒宽比容器多 34px。 */
+  .anchor-apk-footer,
+  .anchor-apk-footer * { box-sizing: border-box; }
   .anchor-apk-footer {
-    box-sizing: border-box;
     max-width: 100%;
     padding: 22px 20px 26px;
     border-top: 1px solid var(--aw-border, #dce3ed);
@@ -509,7 +515,6 @@ Do not consult any external knowledge base — answer from your parametric knowl
     overflow-wrap: anywhere;
   }
   .anchor-apk-footer__inner {
-    box-sizing: border-box;
     max-width: 1180px;
     margin: 0 auto;
     display: flex;
