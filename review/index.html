@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>AnchorAI 文献审阅 · 新证据库只读查看器</title>
+<link rel="stylesheet" href="assets/entry.css">
+</head>
+<body class="entry-page">
+<main class="entry-card">
+  <h1>AnchorAI 文献审阅 · 新证据库只读查看器</h1>
+  <p class="lede">
+    浏览 AnchorAI 新证据库里已提取的文献：按“文献 → PICO → 证据”逐层查看结果，每条证据都能回到原文中锚定的句子（连同前后各 500 字）；也能查阅字段字典、提取提示词包和数据表。
+  </p>
+
+  <!-- 目标地址只写在这一处（href）；下面“将前往”那一行由脚本从这里读出。 -->
+  <a class="entry-cta" id="review-target" href="https://review.882498.xyz/" rel="noopener">打开查看器</a>
+
+  <p class="entry-host" id="review-host" hidden>将前往 <code></code></p>
+
+  <section class="entry-notes">
+    <h2>打开之前请知悉</h2>
+    <ul>
+      <li><strong>会离开本站。</strong>查看器不在 github.io 上，浏览器地址栏会变成上面那个域名。</li>
+      <li><strong>公开只读，不需登录。</strong>任何拿到链接的人都能查看；页面上不能修改任何内容，上传、编辑、取证生成等功能只在内部本机可用。</li>
+      <li><strong>数据来自只读副本。</strong>副本每 15 分钟从新证据库刷新一次，页面顶部会写明副本的截止时间；正在进行的提取可能还没出现在副本里。</li>
+      <li><strong>本页不含任何数据。</strong>这是一个纯静态入口。</li>
+    </ul>
+  </section>
+
+  <p class="entry-back"><a href="../">&#8592; 返回 AnchorAI 演示站</a></p>
+</main>
+<script>
+  (function () {
+    var link = document.getElementById("review-target");
+    var host = document.getElementById("review-host");
+    host.querySelector("code").textContent = link.href;
+    host.hidden = false;
+  })();
+</script>
+</body>
+</html>
