@@ -177,6 +177,9 @@
   }
 
   async function requestStreamedChat(options) {
+    const replay = typeof window !== "undefined" ? window.AnchorDemoReplay : null;
+    const prepared = replay && replay.match(options.question, options);
+    if (prepared) return replay.play(prepared, options);
     const response = await fetch(buildApiUrl(options.apiBase, STREAM_CHAT_PATH), {
       method: "POST",
       headers: {
