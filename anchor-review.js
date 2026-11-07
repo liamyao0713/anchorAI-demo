@@ -31,7 +31,7 @@
     wrong_paper: "#B91C1C",
     not_found: "#B91C1C",
     no_pmid: "#D97706",
-    honest_omission: "#D97706",
+    honest_omission: "#16A34A",
   };
 
   // 认不出的 severity / verdict 一律中性灰：猜一个红或绿，等于替后端做了它没做的判定。
@@ -404,7 +404,8 @@
           cit: text(row.cit),
           pmid: pmidOrEmpty(row.pmid),
           claimed: text(row.claimed),
-          verdict: text(row.verdict).toLowerCase(),
+          // A retracted paper found by title keeps verdict honest_omission in the backend; colour it as retracted, not green.
+          verdict: row.retracted === true ? "retracted" : text(row.verdict).toLowerCase(),
           verdictText: text(row.verdict_text),
           verdictTextEn: text(row.verdict_text_en),
           actual: text(row.actual),

@@ -336,7 +336,7 @@ function kinds(segments) {
   assert.equal(Review.verdictColor("wrong_paper"), "#B91C1C");
   assert.equal(Review.verdictColor("not_found"), "#B91C1C");
   assert.equal(Review.verdictColor("no_pmid"), "#D97706");
-  assert.equal(Review.verdictColor("honest_omission"), "#D97706");
+  assert.equal(Review.verdictColor("honest_omission"), "#16A34A");
   assert.equal(Review.verdictColor("something_new"), Review.NEUTRAL_COLOR);
 }
 
