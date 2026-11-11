@@ -1181,11 +1181,19 @@
       refs.apiHost.textContent = Api.apiHostLabel(apiBase);
     }
 
+    // 运行标签「厂商 / 模型」。模型名本身已带厂商前缀（anthropic/claude-haiku-4.5、
+    // deepseek/deepseek-chat）时只显示模型名：后端直连 Anthropic / OpenAI 之后回的是下拉里的
+    // id，原来的拼法会显示成「anthropic / anthropic/claude-haiku-4.5」（2026-11-11）。
+    function modelTagText(provider, model) {
+      const name = String(model == null ? "" : model);
+      return name.includes("/") ? name : `${provider} / ${name}`;
+    }
+
     function renderQuestionHeader() {
       const vm = state.viewModel;
       refs.taskTitle.textContent = vm ? vm.query.title : t("taskTitleIdle");
       refs.topicTag.textContent = vm ? t("currentRun") : t("ready");
-      refs.modelTag.textContent = vm ? `${vm.provider} / ${vm.model}` : t("serverConfiguredModel");
+      refs.modelTag.textContent = vm ? modelTagText(vm.provider, vm.model) : t("serverConfiguredModel");
     }
 
     // ---------------------------------------------------------------- 基座模型
@@ -1381,9 +1389,9 @@
         metric(t("metricTotalLatency"), vm ? Adapter.formatLatency(vm.latency.totalMs || vm.latency.observedMs) : "-"),
       );
       refs.modelTag.textContent = vm
-        ? `${vm.provider} / ${vm.model}`
+        ? modelTagText(vm.provider, vm.model)
         : raw
-          ? `${Adapter.valueOrDash(raw.provider)} / ${Adapter.valueOrDash(raw.model)}`
+          ? modelTagText(Adapter.valueOrDash(raw.provider), Adapter.valueOrDash(raw.model))
           : t("serverConfiguredModel");
     }
 

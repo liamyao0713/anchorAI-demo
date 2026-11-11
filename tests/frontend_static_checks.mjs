@@ -1436,7 +1436,7 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261107-demo/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261111-modeltag/, "this round's assets must carry the new cache stamp");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 
@@ -1636,4 +1636,18 @@ console.log("streaming A + pending-columns checks passed");
   );
 
   console.log("C column i18n checks passed");
+}
+
+{
+  // 2026-11-11：直连之后后端回的模型名带厂商前缀，运行标签不能再拼成「anthropic / anthropic/…」。
+  assert.match(workspaceUiJs, /function modelTagText\(provider, model\)/, "the run label must go through modelTagText");
+  assert.doesNotMatch(workspaceUiJs, /`\$\{vm\.provider\} \/ \$\{vm\.model\}`/,
+    "the run label must not prefix a model id that already names its vendor");
+  const start = workspaceUiJs.indexOf("function modelTagText(provider, model)");
+  const body = workspaceUiJs.slice(start, workspaceUiJs.indexOf("\n    }", start) + 6);
+  const modelTagText = new Function(`${body}; return modelTagText;`)();
+  assert.equal(modelTagText("anthropic", "anthropic/claude-haiku-4.5"), "anthropic/claude-haiku-4.5");
+  assert.equal(modelTagText("openai", "deepseek/deepseek-chat"), "deepseek/deepseek-chat");
+  assert.equal(modelTagText("openai", "gpt-5.2"), "openai / gpt-5.2");
+  console.log("run label checks passed");
 }
