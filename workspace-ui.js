@@ -88,12 +88,12 @@
       keyCorrections: "Key corrections",
       workbenchAria: "Evidence verification workspace",
       workspacePanelsAria: "Workspace panels",
-      panelTabRaw: "A Raw",
+      panelTabRaw: "A Original",
       panelTabCorrected: "B Corrected",
       panelTabAudit: "C Audit",
-      rawTitle: "Uncorrected answer",
-      correctedTitle: "Anchor-corrected answer",
-      auditTitle: "Audit / Differences / Citations",
+      rawTitle: "Original",
+      correctedTitle: "Corrected",
+      auditTitle: "Audit",
       auditSubtitle: "Correction records, references and run details",
       copyRawAnswer: "Copy raw answer",
       copyCorrectedAnswer: "Copy corrected answer",
@@ -198,9 +198,9 @@
       save: "Save",
       restoreDefault: "Restore default",
       testConnection: "Test connection",
-      readRawTitle: "Uncorrected answer",
-      readCorrectedTitle: "Anchor-corrected answer",
-      readAuditTitle: "Audit / Differences / Citations",
+      readRawTitle: "Original",
+      readCorrectedTitle: "Corrected",
+      readAuditTitle: "Audit",
       evidenceRisk: "Evidence risk",
       clinicalConsequence: "Clinical consequence",
       verifiableCorrection: "Verifiable correction",
@@ -342,12 +342,14 @@
       viewRawResponse: "View raw response",
       // anchor_review 三栏的固定文案。两套取自历史 v39/v40（build_demo_v7.py 里的 bi() 对照）。
       reviewSectionAria: "Anchor review columns",
-      reviewTitleA: "Uncorrected · {model}",
-      reviewTitleAUnknownModel: "Uncorrected",
-      reviewTitleAPasted: "Uncorrected · pasted answer",
+      reviewTitleA: "Original · {model}",
+      reviewTitleAUnknownModel: "Original",
+      reviewTitleAPasted: "Original · pasted answer",
       reviewNoteA: "LLM verbatim. Yellow highlight = claims Anchor flagged after verification (see Ⓒ).",
-      reviewTitleB: "Anchor-corrected · KB-grounded",
-      reviewTitleC: "Diff audit · correction axes",
+      reviewTitleB: "Corrected",
+      reviewTitleC: "Audit",
+      reviewTitleBHint: "Corrected against our evidence database (KB-grounded)",
+      reviewTitleCHint: "Each change: what the model said → what the evidence says → why it was changed",
       reviewTrack: "Track",
       reviewClean: "Clean",
       reviewSwitchAria: "Switch between the tracked-changes view and the clean view",
@@ -416,12 +418,12 @@
       keyCorrections: "关键校正",
       workbenchAria: "证据核验工作台",
       workspacePanelsAria: "工作台面板",
-      panelTabRaw: "A 原始",
-      panelTabCorrected: "B 校正",
-      panelTabAudit: "C 审计",
-      rawTitle: "未校正回答",
-      correctedTitle: "Anchor 校正回答",
-      auditTitle: "审计 / 差异 / 引用",
+      panelTabRaw: "A 原回答",
+      panelTabCorrected: "B 矫正后",
+      panelTabAudit: "C 审核",
+      rawTitle: "原回答",
+      correctedTitle: "矫正后",
+      auditTitle: "审核",
       auditSubtitle: "校正记录、参考文献和运行详情",
       copyRawAnswer: "复制原始回答",
       copyCorrectedAnswer: "复制校正回答",
@@ -524,9 +526,9 @@
       save: "保存",
       restoreDefault: "恢复默认",
       testConnection: "测试连接",
-      readRawTitle: "未校正回答",
-      readCorrectedTitle: "Anchor 校正回答",
-      readAuditTitle: "审计 / 差异 / 引用",
+      readRawTitle: "原回答",
+      readCorrectedTitle: "矫正后",
+      readAuditTitle: "审核",
       evidenceRisk: "证据风险",
       clinicalConsequence: "临床影响",
       verifiableCorrection: "可核验校正",
@@ -667,12 +669,14 @@
       warningsNotes: "警告 / 备注",
       viewRawResponse: "查看原始响应",
       reviewSectionAria: "Anchor 校正三栏",
-      reviewTitleA: "未矫正 · {model} 原话",
-      reviewTitleAUnknownModel: "未矫正 · 原话",
-      reviewTitleAPasted: "未矫正 · 粘贴的答案",
+      reviewTitleA: "原回答 · {model}",
+      reviewTitleAUnknownModel: "原回答",
+      reviewTitleAPasted: "原回答 · 粘贴的答案",
       reviewNoteA: "LLM 逐字原文。黄色高亮 = Anchor 在 Ⓒ 栏核验后标出的可疑主张。",
-      reviewTitleB: "Anchor 校正版 · KB 锚定",
-      reviewTitleC: "对比审计 · 矫正轴",
+      reviewTitleB: "矫正后",
+      reviewTitleC: "审核",
+      reviewTitleBHint: "按我们的证据库矫正（KB 锚定）",
+      reviewTitleCHint: "每处修改：模型说了什么 → 证据怎么说 → 为什么改",
       reviewTrack: "修订",
       reviewClean: "净版",
       reviewSwitchAria: "在修订视图与净版之间切换",
@@ -946,6 +950,9 @@
       });
       root.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
         element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+      });
+      root.querySelectorAll("[data-i18n-title]").forEach((element) => {
+        element.setAttribute("title", t(element.dataset.i18nTitle));
       });
     }
 
@@ -2390,13 +2397,13 @@
     }
 
     // 完整的 raw_answer 到之前不点名模型（流里的 delta 只有文字，拿下拉框去猜在粘贴模式下
-    // 就是错的），所以流式期间是「未矫正 · 原话」，A 一写完就换成具体的模型名。
+    // 就是错的），所以流式期间是「原回答」，A 一写完就换成具体的模型名（标题里去掉开头的 "Claude "）。
     function reviewTitleForA(rawAnswer) {
       if (rawAnswer && (rawAnswer.model === "pasted" || rawAnswer.provider === "pasted")) {
         return t("reviewTitleAPasted");
       }
       if (rawAnswer && rawAnswer.model) {
-        return t("reviewTitleA", { model: modelDisplayName(rawAnswer.model) });
+        return t("reviewTitleA", { model: modelDisplayName(rawAnswer.model).replace(/^Claude\s+/, "") });
       }
       return t("reviewTitleAUnknownModel");
     }

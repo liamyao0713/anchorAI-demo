@@ -95,19 +95,19 @@
       <div class="aw-read-guide">
         <button class="aw-read-card aw-read-card-a" type="button" data-read-panel="raw">
           <span class="aw-read-token">A</span>
-          <strong data-i18n="readRawTitle">Uncorrected answer</strong>
+          <strong data-i18n="readRawTitle">Original</strong>
           <span data-lang-block="en">Shows the model's original answer without Anchor rewriting. Claims that Anchor can reliably identify as suspicious or insufficiently supported are highlighted or listed.</span>
           <span data-lang-block="zh">显示模型的原始回答，不经过 Anchor 改写。Anchor 能可靠识别的可疑或证据不足 claim 会被高亮或列出。</span>
         </button>
         <button class="aw-read-card aw-read-card-b" type="button" data-read-panel="corrected">
           <span class="aw-read-token">B</span>
-          <strong data-i18n="readCorrectedTitle">Anchor-corrected answer</strong>
+          <strong data-i18n="readCorrectedTitle">Corrected</strong>
           <span data-lang-block="en">Shows the answer calibrated against the current knowledge base and available evidence. Clean mode is for reading; Tracked mode shows claim-level changes and citation markers.</span>
           <span data-lang-block="zh">展示基于当前知识库和可用证据校正后的回答。Clean 模式用于直接阅读，Tracked 模式用于查看 claim 级修改和 citation 标记。</span>
         </button>
         <button class="aw-read-card aw-read-card-c" type="button" data-read-panel="audit">
           <span class="aw-read-token">C</span>
-          <strong data-i18n="readAuditTitle">Audit / Differences / Citations</strong>
+          <strong data-i18n="readAuditTitle">Audit</strong>
           <span data-lang-block="en">Shows what the model said, what Anchor verified, why a correction was made, whether citations match the claim, and the run details needed for traceability.</span>
           <span data-lang-block="zh">展示模型原话、Anchor 核验后的表达、为什么校正、citation 是否真实且支持对应 claim，以及可追溯的运行细节。</span>
         </button>
@@ -253,7 +253,7 @@
 
   <section class="aw-workbench" aria-label="Evidence verification workspace" data-i18n-aria-label="workbenchAria">
     <div class="aw-mobile-panel-tabs" role="tablist" aria-label="Workspace panels" data-i18n-aria-label="workspacePanelsAria">
-      <button class="aw-panel-tab active" type="button" role="tab" aria-selected="true" data-panel="raw" data-i18n="panelTabRaw">A Raw</button>
+      <button class="aw-panel-tab active" type="button" role="tab" aria-selected="true" data-panel="raw" data-i18n="panelTabRaw">A Original</button>
       <button class="aw-panel-tab" type="button" role="tab" aria-selected="false" data-panel="corrected" data-i18n="panelTabCorrected">B Corrected</button>
       <button class="aw-panel-tab" type="button" role="tab" aria-selected="false" data-panel="audit" data-i18n="panelTabAudit">C Audit</button>
     </div>
@@ -262,7 +262,7 @@
         <header class="aw-panel-head">
           <div class="aw-panel-title">
             <span class="aw-letter">A</span>
-            <h2 id="aw-raw-title" class="aw-panel-h-title" data-i18n="rawTitle">Uncorrected answer</h2>
+            <h2 id="aw-raw-title" class="aw-panel-h-title" data-i18n="rawTitle">Original</h2>
           </div>
           <div class="aw-panel-tools">
             <button id="aw-paste-here" class="aw-ghost-button aw-panel-tool-button" type="button" aria-expanded="false" aria-controls="aw-paste-wrap" data-i18n="pasteHere">Paste answer</button>
@@ -285,7 +285,7 @@
         <header class="aw-panel-head">
           <div class="aw-panel-title">
             <span class="aw-letter">B</span>
-            <h2 id="aw-corrected-title" class="aw-panel-h-title" data-i18n="correctedTitle">Anchor-corrected answer</h2>
+            <h2 id="aw-corrected-title" class="aw-panel-h-title" data-i18n="correctedTitle">Corrected</h2>
           </div>
           <div class="aw-panel-actions">
             <div class="aw-mode-toggle" role="group" aria-label="Corrected answer display mode" data-i18n-aria-label="correctedModeAria">
@@ -309,7 +309,7 @@
         <header class="aw-panel-head">
           <div class="aw-panel-title">
             <span class="aw-letter">C</span>
-            <h2 id="aw-audit-title" class="aw-panel-h-title" data-i18n="auditTitle">Audit / Differences / Citations</h2>
+            <h2 id="aw-audit-title" class="aw-panel-h-title" data-i18n="auditTitle">Audit</h2>
           </div>
         </header>
         <div class="aw-audit-tabs" role="tablist" aria-label="Audit tabs" data-i18n-aria-label="auditTabsAria">
@@ -379,7 +379,7 @@
       <div id="awv7-col-b" class="v7-col v7-col-b">
         <div class="v7-col-h v7-h-b">
           <span class="v7-badge">Ⓑ</span>
-          <span id="awv7-b-title" class="v7-h-title" data-i18n="reviewTitleB"></span>
+          <span id="awv7-b-title" class="v7-h-title" data-i18n="reviewTitleB" data-i18n-title="reviewTitleBHint"></span>
           <span id="awv7-b-slide" class="v7-slide-ctl">
             <span class="v7-slab v7-slab-l" data-i18n="reviewTrack"></span>
             <label class="v7-switch"><input id="awv7-switch" type="checkbox" aria-label="Track or clean view" data-i18n-aria-label="reviewSwitchAria"><span class="v7-knob"></span></label>
@@ -406,7 +406,7 @@
         <div class="v7-col-more" data-i18n="reviewScrollMore" hidden></div>
       </div>
       <div class="v7-col v7-col-c">
-        <div class="v7-col-h v7-h-c"><span class="v7-badge">Ⓒ</span><span class="v7-h-title" data-i18n="reviewTitleC"></span></div>
+        <div class="v7-col-h v7-h-c"><span class="v7-badge">Ⓒ</span><span class="v7-h-title" data-i18n="reviewTitleC" data-i18n-title="reviewTitleCHint"></span></div>
         <div class="v7-col-body">
           <div id="awv7-c-pending" class="v7-pending" role="status" aria-live="polite" hidden>
             <div class="v7-pending-title"><span class="v7-pending-dot" aria-hidden="true"></span><span data-i18n="reviewPendingTitle"></span></div>

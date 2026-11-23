@@ -62,9 +62,10 @@ assert.match(html, /data-ui-language="en"/, "workspace root must carry the curre
 assert.match(html, /data-ui-lang="zh"/, "workspace must support Chinese static UI copy");
 assert.doesNotMatch(html, /data-about-lang=/, "language switching must be global, not About-only");
 assert.doesNotMatch(html, /id="aw-about-lang-en" class="aw-mode-button/, "language buttons must not reuse the corrected-answer mode class");
-assert.match(html, /Uncorrected answer/, "Raw Answer area must be explicitly uncorrected");
-assert.match(html, /Anchor-corrected answer/, "Corrected Answer area must remain separate");
-assert.match(html, /Audit \/ Differences \/ Citations/, "Audit area must remain separate");
+// 2026-11-23 (user: "ABC框标题可以简写" → "方案一"): the A area is "Original", the model's answer before correction.
+assert.match(html, /data-i18n="rawTitle">Original</, "the A area is named Original");
+assert.match(html, /data-i18n="correctedTitle">Corrected</, "Corrected Answer area must remain separate");
+assert.match(html, /data-i18n="auditTitle">Audit</, "Audit area must remain separate");
 assert.match(html, /respiratory medicine/, "workspace must disclose the KB scope in English");
 assert.doesNotMatch(workspaceHtml, /DeepSeek v4 Pro|Gemini 3 Flash|OpenEvidence|ChatGPT 5\.5|Claude 4\.7/, "workspace entry must not hardcode model selectors");
 assert.doesNotMatch(workspaceHtml, /Case 1|Case 2|Case 3|Case 4|Case 5|Case 6/, "workspace entry must not include legacy hardcoded demo cases");
@@ -728,7 +729,7 @@ const uiTextBlock = workspaceUiJs.slice(
   assert.equal((uiTextBlock.match(new RegExp(`\\n\\s+${key}:`, "g")) || []).length, 2,
     `${key} must be defined in both the en and zh tables`);
 });
-assert.match(workspaceUiJs, /reviewTitleA: "未矫正 · \{model\} 原话"/,
+assert.match(workspaceUiJs, /reviewTitleA: "原回答 · \{model\}"/,
   "the Ⓐ header must name the model that wrote the answer");
 // Ⓐ 点名的必须是写出原话的那个模型。anchor_review.model 是 Anchor 的**校正**模型，
 // 用它当 Ⓐ 的标题，等于说校正模型写了被校正的那段话。
@@ -1470,8 +1471,12 @@ console.log("streaming A + pending-columns checks passed");
 {
   const uiSrc = readFileSync(new URL("../workspace-ui.js", import.meta.url), "utf8");
   assert.match(uiSrc, /function modelDisplayName\(/, "A title must map model ids to catalog labels");
-  assert.match(uiSrc, /reviewTitleAPasted: "未矫正 · 粘贴的答案"/, "zh pasted title");
-  assert.match(uiSrc, /reviewTitleAPasted: "Uncorrected · pasted answer"/, "en pasted title");
+  assert.match(uiSrc, /reviewTitleAPasted: "原回答 · 粘贴的答案"/, "zh pasted title");
+  assert.match(uiSrc, /reviewTitleAPasted: "Original · pasted answer"/, "en pasted title");
+  // 2026-11-23 (user: "ABC框标题可以简写" → "方案一"): short titles; the old wording is the B / C hover text.
+  assert.match(uiSrc, /reviewTitleB: "Corrected",/, "en B title");
+  assert.match(uiSrc, /reviewTitleC: "审核",/, "zh C title");
+  assert.match(uiSrc, /\[data-i18n-title\]/, "hover titles follow the language switch");
   assert.ok(!/t\("reviewTitleA", \{ model: baseModel \}\)/.test(uiSrc), "A title must not print the raw model id");
   console.log("A-column title checks passed");
 }
