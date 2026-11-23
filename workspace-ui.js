@@ -349,6 +349,8 @@
       reviewTitleB: "Corrected",
       reviewTitleC: "Audit",
       reviewTitleBHint: "Corrected against our evidence database (KB-grounded)",
+      reviewRunLog: "Run record ↗",
+      reviewRunLogHint: "Open this run's full record in the workflow system (retrieval, prompts, B's input and output). Needs the workflow login.",
       reviewTitleCHint: "Each change: what the model said → what the evidence says → why it was changed",
       reviewTrack: "Track",
       reviewClean: "Clean",
@@ -676,6 +678,8 @@
       reviewTitleB: "矫正后",
       reviewTitleC: "审核",
       reviewTitleBHint: "按我们的证据库矫正（KB 锚定）",
+      reviewRunLog: "运行记录 ↗",
+      reviewRunLogHint: "在工作流系统里打开这次运行的完整记录（检索、提示词、B 的输入和输出），需要登录工作流。",
       reviewTitleCHint: "每处修改：模型说了什么 → 证据怎么说 → 为什么改",
       reviewTrack: "修订",
       reviewClean: "净版",
@@ -2355,6 +2359,8 @@
       refs.reviewAuditContent.hidden = on;
       // 还没有校正稿，「修订 ⇄ 净版」切过去两边都是空的。
       refs.reviewSlide.hidden = on;
+      // 这一次还没跑完，工作流的运行记录里也还没有它。
+      if (on) refs.reviewLog.hidden = true;
       if (!on) {
         // 文字留着的话，切界面语言后它既不会重画、也没人会去画它：下一次占位一亮，
         // 屏幕上先闪一下上一次那句（而且是上一次那个语言的）「正在矫正」。
@@ -2408,6 +2414,17 @@
       return t("reviewTitleAUnknownModel");
     }
 
+    // Ⓑ 栏头「运行记录 ↗」打开工作流系统里这一次运行的完整记录（2026-11-23 用户："B这里上边加一个按钮
+    // 点进去就可以看到本次的一系列记录啥的 就是我们工作流系统里的那个历史记录"）。运行记录按 live:<query_id>
+    // 收录；预置演示是回放（prepared_replay），后端没跑过，记录里没有，就不摆。
+    const WORKFLOW_RUN_URL = "https://review.882498.xyz/workflow/?run=";
+    function updateRunLogLink(response) {
+      const queryId = response && response.query_id;
+      const real = Boolean(queryId) && !response.prepared_replay;
+      refs.reviewLog.hidden = !real;
+      refs.reviewLog.href = real ? WORKFLOW_RUN_URL + encodeURIComponent("live:" + queryId) : "#";
+    }
+
     function renderReviewPreview() {
       setReviewPending(true);
       // 模型名要等完整的 raw_answer 才知道（流里的 delta 只有文字），在那之前用
@@ -2436,6 +2453,7 @@
         return;
       }
       setReviewActive(Boolean(review));
+      updateRunLogLink(state.response);
       // 占位要撤干净，不管接下来画不画三栏：留着它，下一次运行一开始屏幕上就会先闪
       // 一下上一次的「正在核验…」。
       setReviewPending(false);
@@ -2900,6 +2918,7 @@
       reviewTextA: required(root, "#awv7-a-text"),
       reviewIncomplete: required(root, "#awv7-b-incomplete"),
       reviewSlide: required(root, "#awv7-b-slide"),
+      reviewLog: required(root, "#awv7-b-log"),
       reviewPendingB: required(root, "#awv7-b-pending"),
       reviewPendingC: required(root, "#awv7-c-pending"),
       reviewCorr: required(root, "#awv7-b-corr"),

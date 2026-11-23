@@ -1437,7 +1437,15 @@ assert.match(anchorReviewCss, /\.v7-skel-line \{[\s\S]*animation: awv7-shimmer/,
 }
 
 // 7) 缓存戳跟着这一轮改动走，否则浏览器会拿旧的 js 配新的 html。
-assert.match(html, /\?v=20261123-abctitles/, "this round's assets must carry the new cache stamp");
+assert.match(html, /\?v=20261123-runlog/, "this round's assets must carry the new cache stamp");
+// 2026-11-23 (user: "B这里上边加一个按钮 … 就是我们工作流系统里的那个历史记录"): the Ⓑ header links to this run
+// in the workflow run history; prepared replays never ran on the backend and get no link.
+assert.match(html, /<a id="awv7-b-log" class="v7-log-link" href="#" target="_blank" rel="noopener" hidden/, "run record link in the B header");
+assert.match(workspaceUiJs, /WORKFLOW_RUN_URL = "https:\/\/review\.882498\.xyz\/workflow\/\?run="/, "run record link target");
+assert.match(workspaceUiJs, /encodeURIComponent\("live:" \+ queryId\)/, "run key is live:<query_id>");
+assert.match(workspaceUiJs, /reviewRunLog: "运行记录 ↗"/, "zh run record label");
+assert.match(workspaceUiJs, /reviewRunLog: "Run record ↗"/, "en run record label");
+assert.match(readFileSync("demo-replay.js", "utf8"), /final\.prepared_replay = true;/, "replays are marked");
 // 浏览器的中断计时器不变：后端给开推理那一次的预算（300 秒）没改，只是实际跑得更快了。
 assert.equal(workspaceApi.REASONING_REQUEST_TIMEOUT_MS, 330000, "the reasoning abort timer must stay at 330s");
 

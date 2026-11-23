@@ -178,6 +178,26 @@
   padding: 9px 10px;
 }
 
+/* Ⓑ 栏头「运行记录 ↗」：标题和滑块之间的小胶囊，新标签页打开工作流系统里这一次的记录。 */
+#aw-anchor-review .v7-log-link {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, .6);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #fff;
+  text-decoration: none;
+  white-space: nowrap;
+}
+#aw-anchor-review .v7-log-link:hover,
+#aw-anchor-review .v7-log-link:focus-visible { background: rgba(255, 255, 255, .2); }
+/* 手机宽度：标题 + 链接 + 滑块一行放不下时（英文界面），滑块换到第二行，标题不被挤成省略号。 */
+@media (max-width: 520px) {
+  #aw-anchor-review .v7-h-b { flex-wrap: wrap; row-gap: 6px; }
+}
+
 /* Ⓑ 栏头：左边标题，右边「修订 Track ⇄ 净版 Clean」滑块。 */
 #aw-anchor-review .v7-slide-ctl {
   display: inline-flex;

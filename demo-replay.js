@@ -94,6 +94,8 @@
     const final = JSON.parse(JSON.stringify(item.final));
     const queryId = newQueryId();
     final.query_id = queryId;
+    // 回放不经过后端：工作流的运行记录里没有这一次，Ⓑ 栏头就不摆「运行记录」链接。
+    final.prepared_replay = true;
     final.question = options.question;
     const stage = (name) => options.onStage && options.onStage(name, { query_id: queryId, stage: name });
 
