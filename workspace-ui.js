@@ -371,6 +371,7 @@
       // Ⓐ 到了、final 还没到时 Ⓑ/Ⓒ 栏显示的占位与步骤。三步照提速约定的措辞。
       reviewPendingTitle: "Verifying…",
       reviewProgressStarting: "Starting the verification pipeline",
+      reviewProgressWaitingA: "Waiting for A to finish (evidence search already running)",
       reviewProgressRetrieval: "Searching evidence",
       reviewProgressCitations: "Checking citations",
       reviewProgressCorrection: "Applying corrections",
@@ -699,6 +700,7 @@
       reviewSourceVerified: "文献核验",
       reviewPendingTitle: "正在核验…",
       reviewProgressStarting: "正在启动核验流程",
+      reviewProgressWaitingA: "等 A 写完（证据检索已在后台同时开始）",
       reviewProgressRetrieval: "正在检索证据",
       reviewProgressCitations: "正在核验引用",
       reviewProgressCorrection: "正在矫正",
@@ -2378,6 +2380,9 @@
       if (state.livePhase === "retrieval") return t("reviewProgressRetrieval");
       if (state.livePhase === "ncbi") return t("reviewProgressCitations");
       if (state.livePhase === "correction") return t("reviewProgressCorrection");
+      // 2026-11-24：A 还在写时，后端已在后台检索（线上 13:58 起先行检索）。原来这段时间一直显示「正在启动核验流程」，
+      // 看起来像卡住了（用户："Yes, change it"）。完整的 raw_answer 到了才换回原来那句。
+      if (!state.rawAnswer) return t("reviewProgressWaitingA");
       return t("reviewProgressStarting");
     }
 
